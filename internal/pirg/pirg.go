@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	err error
+	err   error
 	found bool
 )
 
@@ -65,7 +65,7 @@ func PirgCreate(ctx context.Context, name string, pi string) error {
 		return nil
 	}
 
-	// Get the starting gidNumber, we'll increment locally 
+	// Get the starting gidNumber, we'll increment locally
 	// for each group we create
 	gidNumber, err := ld.GetNextGidNumber(ctx)
 	if err != nil {
@@ -98,7 +98,7 @@ func PirgCreate(ctx context.Context, name string, pi string) error {
 	// Create the PIRG group object
 	pirgName := fmt.Sprintf("is.racs.pirg.%s", name)
 	slog.Debug("PIRG group name", "pirgName", pirgName)
-	err = ld.CreateADGroup(ctx, pirgDN, pirgName, gidNumber)	
+	err = ld.CreateADGroup(ctx, pirgDN, pirgName, gidNumber)
 	if err != nil {
 		return fmt.Errorf("failed to create PIRG group object: %w", err)
 	}
@@ -225,4 +225,3 @@ func PirgSubgroupList(ctx context.Context, name string) ([]string, error) {
 	// This function should interact with the LDAP server to list all subgroups.
 	return []string{}, nil
 }
-

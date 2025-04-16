@@ -16,7 +16,7 @@ import (
 
 var CLI struct {
 	Config string `help:"Path to the configuration file." type:"path"`
-	Debug bool   `help:"Enable debug mode."`
+	Debug  bool   `help:"Enable debug mode."`
 
 	Pirg struct {
 		List struct {
@@ -27,40 +27,39 @@ var CLI struct {
 			Create struct {
 				PI string `required:"" help:"Name of the PI." type:"name"`
 			} `cmd:"" help:"Create a new PIRG."`
-			Delete struct { } `cmd:"" help:"Delete a PIRG."`
-			GetPI struct { } `cmd:"" help:"Get the PI of a PIRG."`
-			SetPI struct {
+			Delete struct{} `cmd:"" help:"Delete a PIRG."`
+			GetPI  struct{} `cmd:"" help:"Get the PI of a PIRG."`
+			SetPI  struct {
 				PI string `required:"" name:"pi" help:"Name of the PI." type:"name"`
 			} `cmd:"" help:"Set the PI of a PIRG."`
-			ListMembers struct { } `cmd:"" help:"List all members of a PIRG."`
-			AddMember struct {
+			ListMembers struct{} `cmd:"" help:"List all members of a PIRG."`
+			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 			} `cmd:"" help:"Add members to a PIRG."`
 			RemoveMember struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 			} `cmd:"" help:"Remove members from a PIRG."`
-			ListAdmins struct { } `cmd:"" help:"List all admins of a PIRG."`
-			AddAdmin struct {
+			ListAdmins struct{} `cmd:"" help:"List all admins of a PIRG."`
+			AddAdmin   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the admins." type:"name"`
 			} `cmd:"" help:"Add admins to a PIRG."`
 			RemoveAdmin struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the admins." type:"name"`
 			} `cmd:"" help:"Remove admins from a PIRG."`
 			Subgroup struct {
-				List struct { } `cmd:"" help:"List all subgroups."`
+				List struct{} `cmd:"" help:"List all subgroups."`
 				Name struct {
-					Name string `arg`
-					Create struct { } `cmd:"" help:"Create a new subgroup."`
-					Delete struct { } `cmd:"" help:"Delete a subgroup."`
-					ListMembers struct { } `cmd:"" help:"List all members of a subgroup."`
-					AddMember struct {
+					Name        string   `arg`
+					Create      struct{} `cmd:"" help:"Create a new subgroup."`
+					Delete      struct{} `cmd:"" help:"Delete a subgroup."`
+					ListMembers struct{} `cmd:"" help:"List all members of a subgroup."`
+					AddMember   struct {
 						Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 					} `cmd:"" help:"Add members to a subgroup."`
 					RemoveMember struct {
 						Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 					} `cmd:"" help:"Remove members from a subgroup."`
 				} `arg`
-
 			} `cmd:"" help:"Manage subgroups."`
 		} `arg:""`
 	} `cmd:"" help:"Manage PIRGs."`

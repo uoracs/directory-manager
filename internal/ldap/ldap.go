@@ -170,15 +170,15 @@ func GetUserDN(ctx context.Context, username string) (string, error) {
 
 	// Construct the search request.
 	searchRequest := ldap.NewSearchRequest(
-		baseDN,                    // The base DN for the search.
-		ldap.ScopeWholeSubtree,    // Search the whole tree.
-		ldap.NeverDerefAliases,    // Never dereference aliases.
-		0,                         // No size limit.
-		0,                         // No time limit.
-		false,                     // TypesOnly false, retrieve both attributes and values.
-		filter,                    // The search filter.
-		[]string{"dn"},            // We only need the DN attribute.
-		nil,                       // No additional controls.
+		baseDN,                 // The base DN for the search.
+		ldap.ScopeWholeSubtree, // Search the whole tree.
+		ldap.NeverDerefAliases, // Never dereference aliases.
+		0,                      // No size limit.
+		0,                      // No time limit.
+		false,                  // TypesOnly false, retrieve both attributes and values.
+		filter,                 // The search filter.
+		[]string{"dn"},         // We only need the DN attribute.
+		nil,                    // No additional controls.
 	)
 
 	// Execute the search.
@@ -212,15 +212,15 @@ func GetGroupDN(ctx context.Context, groupname string) (string, error) {
 
 	// Construct the search request.
 	searchRequest := ldap.NewSearchRequest(
-		baseDN,                    // The base DN for the search.
-		ldap.ScopeWholeSubtree,    // Search the whole tree.
-		ldap.NeverDerefAliases,    // Never dereference aliases.
-		0,                         // No size limit.
-		0,                         // No time limit.
-		false,                     // TypesOnly false, retrieve both attributes and values.
-		filter,                    // The search filter.
-		[]string{"dn"},            // We only need the DN attribute.
-		nil,                       // No additional controls.
+		baseDN,                 // The base DN for the search.
+		ldap.ScopeWholeSubtree, // Search the whole tree.
+		ldap.NeverDerefAliases, // Never dereference aliases.
+		0,                      // No size limit.
+		0,                      // No time limit.
+		false,                  // TypesOnly false, retrieve both attributes and values.
+		filter,                 // The search filter.
+		[]string{"dn"},         // We only need the DN attribute.
+		nil,                    // No additional controls.
 	)
 
 	// Execute the search.

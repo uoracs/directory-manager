@@ -10,17 +10,17 @@ import (
 )
 
 type Config struct {
-	LDAPServer   string `yaml:"ldap_server"`
-	LDAPPort     int    `yaml:"ldap_port"`
-	LDAPUsername string `yaml:"ldap_username"`
-	LDAPPassword string `yaml:"ldap_password"`
-	LDAPUsersBaseDN   string `yaml:"ldap_users_base_dn"`
-	LDAPGroupsBaseDN   string `yaml:"ldap_groups_base_dn"`
-	LDAPPirgDN   string `yaml:"ldap_pirg_dn"`
-	LDAPCephDN   string `yaml:"ldap_ceph_dn"`
-	LDAPMinGid   int    `yaml:"ldap_min_gid"`
-	LDAPMaxGid   int    `yaml:"ldap_max_gid"`
-	DataPath   string `yaml:"data_path"`
+	LDAPServer       string `yaml:"ldap_server"`
+	LDAPPort         int    `yaml:"ldap_port"`
+	LDAPUsername     string `yaml:"ldap_username"`
+	LDAPPassword     string `yaml:"ldap_password"`
+	LDAPUsersBaseDN  string `yaml:"ldap_users_base_dn"`
+	LDAPGroupsBaseDN string `yaml:"ldap_groups_base_dn"`
+	LDAPPirgDN       string `yaml:"ldap_pirg_dn"`
+	LDAPCephDN       string `yaml:"ldap_ceph_dn"`
+	LDAPMinGid       int    `yaml:"ldap_min_gid"`
+	LDAPMaxGid       int    `yaml:"ldap_max_gid"`
+	DataPath         string `yaml:"data_path"`
 }
 
 func loadEnvironment() (*Config, error) {
