@@ -1,5 +1,6 @@
 bin/
 config.yaml
+.ansible
 
 *.exe
 *.exe~
@@ -22,3 +23,5 @@ go.work.sum
 
 # env file
 .env
+# Added by goreleaser init:
+dist/
