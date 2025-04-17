@@ -66,7 +66,6 @@ var CLI struct {
 }
 
 func main() {
-
 	cli := kong.Parse(&CLI,
 		kong.Name("directory-manager"),
 		kong.Description("Command-line tool for managing HPC ActiveDirectory groups."),
@@ -117,38 +116,330 @@ func main() {
 
 	switch cli.Command() {
 	case "pirg <name> create":
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			fmt.Printf("PIRG %s already exists.\n", CLI.Pirg.Name.Name)
+			return
+		}
 		err = pirg.PirgCreate(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Create.PI)
 		if err != nil {
 			fmt.Printf("Error creating PIRG: %v\n", err)
 			os.Exit(1)
 		}
 	case "pirg <name> delete":
-		fmt.Printf("Deleting PIRG with name: %s\n", CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		err = pirg.PirgDelete(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error deleting PIRG: %v\n", err)
+			os.Exit(1)
+		}
 	case "pirg <name> get-pi":
-		fmt.Printf("Getting PI of PIRG with name: %s\n", CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		pi, err := pirg.PirgGetPIUsername(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error getting PI: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(pi)
 	case "pirg <name> set-pi":
-		fmt.Printf("Setting PI of PIRG with name: %s to %s\n", CLI.Pirg.Name.Name, CLI.Pirg.Name.SetPI.PI)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		err = pirg.PirgSetPI(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.SetPI.PI)
+		if err != nil {
+			fmt.Printf("Error setting PI: %v\n", err)
+			os.Exit(1)
+		}
 	case "pirg <name> list-members":
-		fmt.Printf("Listing members of PIRG with name: %s\n", CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		members, err := pirg.PirgListMemberUsernames(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing members: %v\n", err)
+			os.Exit(1)
+		}
+		for _, member := range members {
+			fmt.Println(member)
+		}
 	case "pirg <name> add-member <username>":
-		fmt.Printf("Adding members %v to PIRG with name: %s\n", CLI.Pirg.Name.AddMember.Usernames, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		for _, username := range CLI.Pirg.Name.AddMember.Usernames {
+			err = pirg.PirgAddMember(ctx, CLI.Pirg.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
 	case "pirg <name> remove-member <username>":
-		fmt.Printf("Removing members %v from PIRG with name: %s\n", CLI.Pirg.Name.RemoveMember.Usernames, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		for _, username := range CLI.Pirg.Name.RemoveMember.Usernames {
+			err = pirg.PirgRemoveMember(ctx, CLI.Pirg.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
 	case "pirg <name> list-admins":
-		fmt.Printf("Listing admins of PIRG with name: %s\n", CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		admins, err := pirg.PirgListAdminUsernames(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing admins: %v\n", err)
+			os.Exit(1)
+		}
+		for _, admin := range admins {
+			fmt.Println(admin)
+		}
 	case "pirg <name> add-admin <username>":
-		fmt.Printf("Adding admins %v to PIRG with name: %s\n", CLI.Pirg.Name.AddAdmin.Usernames, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		for _, username := range CLI.Pirg.Name.AddAdmin.Usernames {
+			err = pirg.PirgAddAdmin(ctx, CLI.Pirg.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding admin %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
 	case "pirg <name> remove-admin <username>":
-		fmt.Printf("Removing admins %v from PIRG with name: %s\n", CLI.Pirg.Name.RemoveAdmin.Usernames, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		for _, username := range CLI.Pirg.Name.RemoveAdmin.Usernames {
+			err = pirg.PirgRemoveAdmin(ctx, CLI.Pirg.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing admin %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "pirg <name> subgroup list":
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		subgroups, err := pirg.PirgSubgroupList(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing subgroups: %v\n", err)
+			os.Exit(1)
+		}
+		if len(subgroups) == 0 {
+			fmt.Println("No subgroups found.")
+			return
+		}
+		for _, subgroup := range subgroups {
+			fmt.Println(subgroup)
+		}
+
 	case "pirg <name> subgroup <name> create":
-		fmt.Printf("Creating a new subgroup with name: %s under PIRG: %s\n", CLI.Pirg.Name.Subgroup.Name, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		found, err = pirg.PirgSubgroupExists(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking subgroup existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			fmt.Printf("Subgroup %s already exists.\n", CLI.Pirg.Name.Subgroup.Name.Name)
+			return
+		}
+		err = pirg.PirgSubgroupCreate(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			slog.Error("Error creating subgroup", "error", err)
+			os.Exit(1)
+		}
 	case "pirg <name> subgroup <name> delete":
-		fmt.Printf("Deleting subgroup with name: %s under PIRG: %s\n", CLI.Pirg.Name.Subgroup.Name, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		found, err = pirg.PirgSubgroupExists(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking subgroup existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Subgroup %s not found.\n", CLI.Pirg.Name.Subgroup.Name.Name)
+			return
+		}
+		err = pirg.PirgSubgroupDelete(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error deleting subgroup: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Subgroup %s not found.\n", CLI.Pirg.Name.Subgroup.Name.Name)
+			return
+		}
 	case "pirg <name> subgroup <name> list-members":
-		fmt.Printf("Listing members of subgroup with name: %s under PIRG: %s\n", CLI.Pirg.Name.Subgroup.Name, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		found, err = pirg.PirgSubgroupExists(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking subgroup existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Subgroup %s not found.\n", CLI.Pirg.Name.Subgroup.Name.Name)
+			return
+		}
+		members, err := pirg.PirgSubgroupListMemberUsernames(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing subgroup members: %v\n", err)
+			os.Exit(1)
+		}
+		if len(members) == 0 {
+			fmt.Println("No members found in subgroup.")
+			return
+		}
+		for _, member := range members {
+			fmt.Println(member)
+		}
 	case "pirg <name> subgroup <name> add-member <username>":
-		fmt.Printf("Adding members %v to subgroup with name: %s under PIRG: %s\n", CLI.Pirg.Name.Subgroup.Name.AddMember.Usernames, CLI.Pirg.Name.Subgroup.Name.Name, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		found, err = pirg.PirgSubgroupExists(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking subgroup existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Subgroup %s not found.\n", CLI.Pirg.Name.Subgroup.Name.Name)
+			return
+		}
+		for _, username := range CLI.Pirg.Name.Subgroup.Name.AddMember.Usernames {
+			err = pirg.PirgSubgroupAddMember(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding member %s to subgroup: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
 	case "pirg <name> subgroup <name> remove-member <username>":
-		fmt.Printf("Removing members %v from subgroup with name: %s under PIRG: %s\n", CLI.Pirg.Name.Subgroup.Name.RemoveMember.Usernames, CLI.Pirg.Name.Subgroup.Name, CLI.Pirg.Name.Name)
+		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("PIRG %s not found.\n", CLI.Pirg.Name.Name)
+			return
+		}
+		found, err = pirg.PirgSubgroupExists(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking subgroup existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Subgroup %s not found.\n", CLI.Pirg.Name.Subgroup.Name.Name)
+			return
+		}
+		for _, username := range CLI.Pirg.Name.Subgroup.Name.RemoveMember.Usernames {
+			err = pirg.PirgSubgroupRemoveMember(ctx, CLI.Pirg.Name.Name, CLI.Pirg.Name.Subgroup.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing member %s from subgroup: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	default:
+		fmt.Printf("Unknown command: %s\n", cli.Command())
+		os.Exit(1)
 	}
 }

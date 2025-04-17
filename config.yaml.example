@@ -9,3 +9,5 @@ ldap_pirg_dn:
 ldap_ceph_dn:
 ldap_min_gid:
 ldap_max_gid:
+ldap_group_prefix: ""
+ldap_group_suffix: ""

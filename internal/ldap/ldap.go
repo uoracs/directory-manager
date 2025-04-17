@@ -30,41 +30,6 @@ func LoadLDAPConnection(ctx context.Context) (context.Context, error) {
 	return context.WithValue(ctx, keys.LDAPConnKey, l), nil
 }
 
-func GetExistingGroupsWithGidNumbers(ctx context.Context) (map[string]int, error) {
-	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
-	if cfg == nil {
-		return nil, fmt.Errorf("config not found in context")
-	}
-	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
-	if l == nil {
-		return nil, fmt.Errorf("LDAP connection not found in context")
-	}
-	searchRequest := ldap.NewSearchRequest(
-		cfg.LDAPGroupsBaseDN,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		"(&(objectClass=group)(gidNumber=*))",
-		[]string{"cn", "gidNumber"},
-		nil,
-	)
-	slog.Debug("Searching LDAP for existing groups with gid numbers", "baseDN", cfg.LDAPGroupsBaseDN)
-
-	sr, err := l.Search(searchRequest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search LDAP: %w", err)
-	}
-
-	existing := make(map[string]int)
-	for _, entry := range sr.Entries {
-		gid, err := strconv.Atoi(entry.GetAttributeValue("gidNumber"))
-		if err != nil {
-			continue
-		}
-		existing[entry.GetAttributeValue("cn")] = gid
-	}
-
-	return existing, nil
-}
-
 func CreateOU(ctx context.Context, baseDN string, name string) error {
 	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
 	if l == nil {
@@ -96,7 +61,7 @@ func CreateOU(ctx context.Context, baseDN string, name string) error {
 	return nil
 }
 
-func CreateADGroup(ctx context.Context, baseDN string, name string, gidNumber int) error {
+func CreateGroup(ctx context.Context, baseDN string, name string, gidNumber int) error {
 	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
 	if l == nil {
 		return fmt.Errorf("LDAP connection not found in context")
@@ -148,10 +113,125 @@ func AddUserToGroup(ctx context.Context, groupDN string, userDN string) error {
 
 	// Execute the modify request.
 	if err := l.Modify(modifyRequest); err != nil {
+		// Handle the case where the user is already a member of the group.
+		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultEntryAlreadyExists {
+			slog.Debug("User already in group", "userDN", userDN, "groupDN", groupDN)
+			return nil
+		}
 		return fmt.Errorf("failed to add user %s to group %s: %w", userDN, groupDN, err)
 	}
 
 	return nil
+}
+
+func RemoveUserFromGroup(ctx context.Context, groupDN string, userDN string) error {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// Create a new modify request to remove the user from the group.
+	modifyRequest := ldap.NewModifyRequest(groupDN, nil)
+	modifyRequest.Delete("member", []string{userDN})
+
+	// Execute the modify request.
+	if err := l.Modify(modifyRequest); err != nil {
+		return fmt.Errorf("failed to remove user %s from group %s: %w", userDN, groupDN, err)
+	}
+
+	return nil
+}
+
+func UserInGroup(ctx context.Context, groupDN string, userDN string) (bool, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return false, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// Create a new search request to check if the user is a member of the group.
+	searchRequest := ldap.NewSearchRequest(
+		groupDN,
+		ldap.ScopeBaseObject,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		fmt.Sprintf("(&(objectClass=group)(member=%s))", ldap.EscapeFilter(userDN)),
+		nil,
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return false, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	return len(sr.Entries) > 0, nil
+}
+
+func GetGroupMemberDNs(ctx context.Context, groupDN string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// Create a new search request to get the members of the group.
+	searchRequest := ldap.NewSearchRequest(
+		groupDN,
+		ldap.ScopeBaseObject,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=*)",
+		[]string{"member"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	if len(sr.Entries) == 0 {
+		return nil, fmt.Errorf("group %q not found", groupDN)
+	}
+
+	members := sr.Entries[0].GetAttributeValues("member")
+	return members, nil
+}
+
+// GetGroupMemberUsernames retrieves the usernames of all members of a group.
+func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// Create a new search request to get the members of the group.
+	searchRequest := ldap.NewSearchRequest(
+		groupDN,
+		ldap.ScopeBaseObject,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=*)",
+		[]string{"member"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	if len(sr.Entries) == 0 {
+		return nil, fmt.Errorf("group %q not found", groupDN)
+	}
+
+	members := sr.Entries[0].GetAttributeValues("member")
+	usernames := make([]string, len(members))
+	for i, member := range members {
+		// Extract the username from the DN
+		username := ldap.EscapeFilter(member)
+		usernames[i] = username
+	}
+	return usernames, nil
 }
 
 func GetUserDN(ctx context.Context, username string) (string, error) {
@@ -196,14 +276,14 @@ func GetUserDN(ctx context.Context, username string) (string, error) {
 	return sr.Entries[0].DN, nil
 }
 
-func GetGroupDN(ctx context.Context, groupname string) (string, error) {
+func GetGroupDN(ctx context.Context, groupname string) (string, bool, error) {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
-		return "", fmt.Errorf("config not found in context")
+		return "", false, fmt.Errorf("config not found in context")
 	}
 	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
 	if l == nil {
-		return "", fmt.Errorf("LDAP connection not found in context")
+		return "", false, fmt.Errorf("LDAP connection not found in context")
 	}
 	baseDN := cfg.LDAPGroupsBaseDN
 	// Build a search filter.
@@ -228,16 +308,19 @@ func GetGroupDN(ctx context.Context, groupname string) (string, error) {
 	if err != nil {
 		// Handle the case where the group does not exist, this is not an error
 		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultNoSuchObject {
-			return "", nil
+			slog.Debug("Group not found", "groupname", groupname)
+			return "", false, nil
 		}
-		return "", fmt.Errorf("LDAP search failed: %v", err)
+		slog.Error("LDAP search failed", "error", err)
+		return "", false, fmt.Errorf("LDAP search failed: %v", err)
 	}
 
 	if len(sr.Entries) == 0 {
-		return "", fmt.Errorf("group %q not found", groupname)
+		slog.Debug("Group not found", "groupname", groupname)
+		return "", false, nil
 	}
 
-	return sr.Entries[0].DN, nil
+	return sr.Entries[0].DN, true, nil
 }
 
 func DNExists(ctx context.Context, dn string) (bool, error) {
@@ -268,3 +351,95 @@ func DNExists(ctx context.Context, dn string) (bool, error) {
 
 	return len(sr.Entries) > 0, nil
 }
+
+// GetGroupNamesInOU retrieves the names of all groups in a given organizational unit (OU).
+func GetGroupNamesInOU(ctx context.Context, ouDN string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+	
+	searchRequest := ldap.NewSearchRequest(
+		ouDN,
+		ldap.ScopeSingleLevel,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=group)",
+		[]string{"cn"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	groupNames := make([]string, len(sr.Entries))
+	for i, entry := range sr.Entries {
+		groupNames[i] = entry.GetAttributeValue("cn")
+	}
+
+	return groupNames, nil
+}
+
+// GetGroupDNsInOU retrieves the distinguished names (DNs) of all groups in a given organizational unit (OU).
+func GetGroupDNsInOU(ctx context.Context, ouDN string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	searchRequest := ldap.NewSearchRequest(
+		ouDN,
+		ldap.ScopeSingleLevel,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=group)",
+		[]string{"dn"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	groupDNs := make([]string, len(sr.Entries))
+	for i, entry := range sr.Entries {
+		groupDNs[i] = entry.DN
+	}
+
+	return groupDNs, nil
+}
+
+// DeleteOURecursively deletes an organizational unit (OU) and all its contents.
+func DeleteOURecursively(ctx context.Context, dn string) error {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return fmt.Errorf("LDAP connection not found in context")
+	}
+
+	ctrl := ldap.NewControlSubtreeDelete()
+	delRequest := ldap.NewDelRequest(dn, []ldap.Control{ctrl})
+	if err := l.Del(delRequest); err != nil {
+		return fmt.Errorf("failed to delete OU %s: %w", dn, err)
+	}
+
+	return nil
+}
+
+// DeleteGroup deletes a group from LDAP.
+func DeleteGroup(ctx context.Context, groupDN string) error {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return fmt.Errorf("LDAP connection not found in context")
+	}
+
+	delRequest := ldap.NewDelRequest(groupDN, nil)
+	if err := l.Del(delRequest); err != nil {
+		return fmt.Errorf("failed to delete group %s: %w", groupDN, err)
+	}
+
+	return nil
+}
+
