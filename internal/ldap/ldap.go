@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/lcrownover/directory-manager/internal/config"
-	"github.com/lcrownover/directory-manager/internal/keys"
+	"github.com/uoracs/directory-manager/internal/config"
+	"github.com/uoracs/directory-manager/internal/keys"
 )
 
 func LoadLDAPConnection(ctx context.Context) (context.Context, error) {

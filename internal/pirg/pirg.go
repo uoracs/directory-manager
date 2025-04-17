@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/lcrownover/directory-manager/internal/config"
-	"github.com/lcrownover/directory-manager/internal/keys"
-	ld "github.com/lcrownover/directory-manager/internal/ldap"
+	"github.com/uoracs/directory-manager/internal/config"
+	"github.com/uoracs/directory-manager/internal/keys"
+	ld "github.com/uoracs/directory-manager/internal/ldap"
 )
 
 var (

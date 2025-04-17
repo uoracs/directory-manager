@@ -8,10 +8,10 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/go-ldap/ldap/v3"
-	"github.com/lcrownover/directory-manager/internal/config"
-	"github.com/lcrownover/directory-manager/internal/keys"
-	ld "github.com/lcrownover/directory-manager/internal/ldap"
-	"github.com/lcrownover/directory-manager/internal/pirg"
+	"github.com/uoracs/directory-manager/internal/config"
+	"github.com/uoracs/directory-manager/internal/keys"
+	ld "github.com/uoracs/directory-manager/internal/ldap"
+	"github.com/uoracs/directory-manager/internal/pirg"
 )
 
 var CLI struct {

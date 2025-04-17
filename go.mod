@@ -1,4 +1,4 @@
-module github.com/lcrownover/directory-manager
+module github.com/uoracs/directory-manager
 
 go 1.24.2
 
