@@ -115,6 +115,19 @@ func main() {
 	slog.Debug("Loaded LDAP connection")
 
 	switch cli.Command() {
+	case "pirg list":
+		pirgs, err := pirg.PirgList(ctx)
+		if err != nil {
+			fmt.Printf("Error listing PIRGs: %v\n", err)
+			os.Exit(1)
+		}
+		if len(pirgs) == 0 {
+			fmt.Println("No PIRGs found.")
+			return
+		}
+		for _, pirg := range pirgs {
+			fmt.Println(pirg)
+		}
 	case "pirg <name> create":
 		found, err := pirg.PirgExists(ctx, CLI.Pirg.Name.Name)
 		if err != nil {

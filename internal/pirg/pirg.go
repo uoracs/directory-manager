@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"github.com/uoracs/directory-manager/internal/config"
@@ -15,6 +16,31 @@ var (
 	err   error
 	found bool
 )
+
+func ConvertPIRGGroupNametoShortName(pirgName string) (string, error) {
+	slog.Debug("Converting PIRG group name to short name", "pirgName", pirgName)
+	parts := strings.Split(pirgName, ".")
+	if len(parts) == 0 {
+		return "", fmt.Errorf("invalid PIRG group name: %s", pirgName)
+	}
+	shortName := parts[len(parts)-1]
+	slog.Debug("Converted PIRG group name to short name", "shortName", shortName)
+	return shortName, nil
+}
+
+// pirgGroupNameRegex returns the regex for the PIRG group name.
+// This is used to match only the PIRG groups in the LDAP directory,
+// not the subgroups or any others.
+func pirgGroupNameRegex(ctx context.Context) (string, error) {
+	// Initialize the PIRG group name regex
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return "", fmt.Errorf("config not found in context")
+	}
+	pirgGroupNameRegex := fmt.Sprintf("^%s([a-zA-Z0-9_\\-]+)%s$", cfg.LDAPGroupPrefix, cfg.LDAPGroupSuffix)
+	slog.Debug("PIRG group name regex", "regex", pirgGroupNameRegex)
+	return pirgGroupNameRegex, nil
+}
 
 func getPIRGFullName(ctx context.Context, pirgName string) (string, error) {
 	slog.Debug("Getting PIRG full name", "pirgName", pirgName)
@@ -205,7 +231,7 @@ func getPIRGSubgroupDN(ctx context.Context, pirgName string, subgroupName string
 }
 
 // getPIRGSubgroupName returns the name of the PIRG subgroup with the given name.
-func getPIRGSubgroupName(ctx context.Context, pirgName string, subgroupName string) ( string, error ) {
+func getPIRGSubgroupName(ctx context.Context, pirgName string, subgroupName string) (string, error) {
 	slog.Debug("Getting PIRG subgroup name", "pirgName", pirgName, "subgroupName", subgroupName)
 	pirgFullName, err := getPIRGFullName(ctx, pirgName)
 	if err != nil {
@@ -451,20 +477,41 @@ func PirgList(ctx context.Context) ([]string, error) {
 		return nil, fmt.Errorf("config not found in context")
 	}
 	allPirgsDN := cfg.LDAPPirgDN
-	pirgs, err := ld.GetGroupNamesInOU(ctx, allPirgsDN)
+	pirgs, err := ld.GetGroupNamesInOU(ctx, allPirgsDN, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRGs: %w", err)
 	}
-	return pirgs, nil
+	pirgGroupNameRegex, err := pirgGroupNameRegex(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PIRG group name regex: %w", err)
+	}
+	var pirgGroupNames []string
+	for _, pirg := range pirgs {
+		if matched, err := regexp.MatchString(pirgGroupNameRegex, pirg); err != nil {
+			return nil, fmt.Errorf("failed to match PIRG group name regex: %w", err)
+		} else if matched {
+			pirgGroupNames = append(pirgGroupNames, pirg)
+		}
+	}
+	var pirgShortNames []string
+	for _, pirg := range pirgGroupNames {
+		shortName, err := ConvertPIRGGroupNametoShortName(pirg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert PIRG group name to short name: %w", err)
+		}
+		pirgShortNames = append(pirgShortNames, shortName)
+	}
+	slog.Debug("PIRG names", "pirgShortNames", pirgShortNames)
+	return pirgShortNames, nil
 }
 
-func PirgAddMember(ctx context.Context, name string, member string) error {
-	// Add a member to the PIRG with the given name
+// PirgAddMember adds a member to the PIRG with the given name.
+func PirgAddMember(ctx context.Context, pirgName string, member string) error {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return fmt.Errorf("config not found in context")
 	}
-	pirgDN, err := getPIRGDN(ctx, name)
+	pirgDN, err := getPIRGDN(ctx, pirgName)
 	if err != nil {
 		return fmt.Errorf("failed to get PIRG DN: %w", err)
 	}
@@ -484,9 +531,10 @@ func PirgAddMember(ctx context.Context, name string, member string) error {
 	}
 
 	// Add the user to the PIRG group
+	slog.Debug("Adding user to PIRG", "userDN", userDN, "pirgDN", pirgDN)
 	err = ld.AddUserToGroup(ctx, pirgDN, userDN)
 	if err != nil {
-		return fmt.Errorf("failed to add user %s to PIRG %s: %w", member, name, err)
+		return fmt.Errorf("failed to add user %s to PIRG %s: %w", member, pirgName, err)
 	}
 	slog.Debug("Added user to PIRG", "userDN", userDN, "pirgDN", pirgDN)
 	return nil
@@ -593,7 +641,7 @@ func PirgListAdminUsernames(ctx context.Context, name string) ([]string, error) 
 	if cfg == nil {
 		return nil, fmt.Errorf("config not found in context")
 	}
-	pirgDN, err := getPIRGDN(ctx, name)
+	pirgDN, err := getPIRGAdminsGroupDN(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRG DN: %w", err)
 	}
@@ -702,7 +750,7 @@ func PirgSubgroupList(ctx context.Context, pirgName string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRG subgroup OU DN: %w", err)
 	}
-	subgroups, err := ld.GetGroupNamesInOU(ctx, pirgSubgroupsOUDN)
+	subgroups, err := ld.GetGroupNamesInOU(ctx, pirgSubgroupsOUDN, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRG subgroups: %w", err)
 	}
@@ -923,7 +971,7 @@ func PirgSubgroupListNames(ctx context.Context, pirgName string) ([]string, erro
 		return nil, fmt.Errorf("failed to get PIRG DN: %w", err)
 	}
 	subgroupsDN := fmt.Sprintf("OU=Groups,%s", pirgOUDN)
-	subgroups, err := ld.GetGroupNamesInOU(ctx, subgroupsDN)
+	subgroups, err := ld.GetGroupNamesInOU(ctx, subgroupsDN, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRG subgroups: %w", err)
 	}

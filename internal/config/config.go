@@ -181,6 +181,9 @@ func GetConfig(path string) (*Config, error) {
 	}
 	cfg := mergeConfigsLeft(fileCfg, envCfg)
 
+	// Set unconfigurable values
+
+
 	// Validate the config values
 	if cfg.LDAPServer == "" {
 		return nil, fmt.Errorf("ldap_server is required")

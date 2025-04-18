@@ -5,11 +5,25 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/uoracs/directory-manager/internal/config"
 	"github.com/uoracs/directory-manager/internal/keys"
 )
+
+func ConvertDNToObjectName(dn string) (string, error) {
+	parts := strings.Split(dn, ",")
+	if len(parts) == 0 {
+		return "", fmt.Errorf("invalid DN format")
+	}
+	head := parts[0]
+	hparts := strings.Split(head, "=")
+	if len(hparts) != 2 {
+		return "", fmt.Errorf("invalid DN format")
+	}
+	return hparts[1], nil
+}
 
 func LoadLDAPConnection(ctx context.Context) (context.Context, error) {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
@@ -227,9 +241,11 @@ func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, err
 	members := sr.Entries[0].GetAttributeValues("member")
 	usernames := make([]string, len(members))
 	for i, member := range members {
-		// Extract the username from the DN
-		username := ldap.EscapeFilter(member)
-		usernames[i] = username
+		u, err := ConvertDNToObjectName(member)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert DN to username: %w", err)
+		}
+		usernames[i] = u
 	}
 	return usernames, nil
 }
@@ -353,15 +369,23 @@ func DNExists(ctx context.Context, dn string) (bool, error) {
 }
 
 // GetGroupNamesInOU retrieves the names of all groups in a given organizational unit (OU).
-func GetGroupNamesInOU(ctx context.Context, ouDN string) ([]string, error) {
+func GetGroupNamesInOU(ctx context.Context, ouDN string, recursive bool) ([]string, error) {
+	var scope int
+
 	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
 	if l == nil {
 		return nil, fmt.Errorf("LDAP connection not found in context")
 	}
-	
+
+	if recursive {
+		scope = ldap.ScopeWholeSubtree
+	} else {
+		scope = ldap.ScopeSingleLevel
+	}
+
 	searchRequest := ldap.NewSearchRequest(
 		ouDN,
-		ldap.ScopeSingleLevel,
+		scope,
 		ldap.NeverDerefAliases,
 		0, 0, false,
 		"(objectClass=group)",
@@ -442,4 +466,3 @@ func DeleteGroup(ctx context.Context, groupDN string) error {
 
 	return nil
 }
-
