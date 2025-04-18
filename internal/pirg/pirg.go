@@ -282,7 +282,7 @@ func PirgCreate(ctx context.Context, pirgName string, piUsername string) error {
 	// Get the starting gidNumber, we'll increment locally
 	// for each group we create
 	// TODO: use the prod version: ld.GetNextGidNumber
-	gidNumber, err := ld.GetDummyGidNumber(ctx)
+	gidNumber, err := ld.GetNextGidNumber(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get next GID number: %w", err)
 	}
@@ -783,7 +783,7 @@ func PirgSubgroupCreate(ctx context.Context, pirgName string, subgroupName strin
 	}
 
 	// Create the subgroup object inside the PIRG OU/Groups
-	gidNumber, err := ld.GetDummyGidNumber(ctx)
+	gidNumber, err := ld.GetNextGidNumber(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get next GID number: %w", err)
 	}
