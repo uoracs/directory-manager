@@ -184,12 +184,12 @@ func GetConfig(path string) (*Config, error) {
 	// Set unconfigurable values
 
 
-	// Validate the config values
+	// Validate the config values and set defaults
 	if cfg.LDAPServer == "" {
 		return nil, fmt.Errorf("ldap_server is required")
 	}
 	if cfg.LDAPPort == 0 {
-		return nil, fmt.Errorf("ldap_port is required")
+		cfg.LDAPPort = 686
 	}
 	if cfg.LDAPUsername == "" {
 		return nil, fmt.Errorf("ldap_username is required")
