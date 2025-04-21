@@ -4,7 +4,7 @@ This tool simplifies automating our complicated LDAP group structure for RACS at
 
 ## Installing
 
-Either [download the latest release](https://github.com/uoracs/directory-manager/releases), or install with `go` by running `go install github.com/uoracs/directory-manager/cmd/directory-manager@latest`.
+Either [download the latest release](https://github.com/uoracs/directory-manager/releases), or install with `go` by running `go install github.com/uoracs/directory-manager@latest`.
 
 ## Configuration
 
