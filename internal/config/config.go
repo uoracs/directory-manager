@@ -169,11 +169,13 @@ func mergeConfigsLeft(cfg1, cfg2 *Config) *Config {
 func GetConfig(path string) (*Config, error) {
 	var err error
 	var fileCfg *Config
-	if path != "" {
-		fileCfg, err = readConfig(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
-		}
+	configPath := path
+	if path == "" {
+		configPath = "/etc/directory-manager/config.yaml"
+	}
+	fileCfg, err = readConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 	envCfg, err := loadEnvironment()
 	if err != nil {
@@ -182,7 +184,6 @@ func GetConfig(path string) (*Config, error) {
 	cfg := mergeConfigsLeft(fileCfg, envCfg)
 
 	// Set unconfigurable values
-
 
 	// Validate the config values and set defaults
 	if cfg.LDAPServer == "" {
