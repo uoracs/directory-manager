@@ -17,9 +17,9 @@ import (
 var version = "v1.0.6"
 
 var CLI struct {
-	Config  string `help:"Path to the configuration file." short:"c" type:"path"`
-	Debug   bool   `help:"Enable debug mode." short:"d" type:"bool"`
-	Version bool   `help:"Show version." short:"v" type:"bool"`
+	Config  string      `help:"Path to the configuration file." short:"c" type:"path"`
+	Debug   bool        `help:"Enable debug mode." short:"d" type:"bool"`
+	Version VersionFlag `help:"Show version." short:"v" type:"bool"`
 
 	Pirg struct {
 		List struct {
@@ -68,10 +68,19 @@ var CLI struct {
 	} `cmd:"" help:"Manage PIRGs."`
 }
 
+type VersionFlag bool
+
+func (v VersionFlag) BeforeReset(app *kong.Kong, vars kong.Vars) error {
+	fmt.Fprintln(app.Stdout, vars["version"])
+	app.Exit(0)
+	return nil
+}
+
 func main() {
 	cli := kong.Parse(&CLI,
 		kong.Name("directory-manager"),
 		kong.Description("Command-line tool for managing HPC ActiveDirectory groups."),
+		kong.Vars{"version": version},
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
