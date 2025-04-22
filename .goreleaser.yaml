@@ -46,6 +46,7 @@ changelog:
       - "^test:"
 
 release:
+  replace_existing_artifacts: true
   footer: >-
 
     ---
