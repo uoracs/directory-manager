@@ -14,7 +14,7 @@ import (
 	"github.com/uoracs/directory-manager/internal/pirg"
 )
 
-var version = "v1.0.6"
+var version = "v1.0.7"
 
 var CLI struct {
 	Config  string      `help:"Path to the configuration file." short:"c" type:"path"`
