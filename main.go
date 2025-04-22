@@ -14,9 +14,12 @@ import (
 	"github.com/uoracs/directory-manager/internal/pirg"
 )
 
+var version = "v1.0.6"
+
 var CLI struct {
-	Config string `help:"Path to the configuration file." type:"path"`
-	Debug  bool   `help:"Enable debug mode."`
+	Config  string `help:"Path to the configuration file." short:"c" type:"path"`
+	Debug   bool   `help:"Enable debug mode." short:"d" type:"bool"`
+	Version bool   `help:"Show version." short:"v" type:"bool"`
 
 	Pirg struct {
 		List struct {
@@ -74,6 +77,11 @@ func main() {
 			Compact: true,
 			Summary: true,
 		}))
+
+	if CLI.Version {
+		fmt.Printf("Version: %s\n", version)
+		os.Exit(0)
+	}
 
 	// Set up logging
 	slogOpts := slog.HandlerOptions{

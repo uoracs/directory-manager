@@ -99,7 +99,7 @@ func loadEnvironment() (*Config, error) {
 	return &c, nil
 }
 
-func readConfig(path string) (*Config, error) {
+func readConfigFile(path string) (*Config, error) {
 	// Open the YAML file
 	yml, err := os.ReadFile(path)
 	if err != nil {
@@ -169,13 +169,18 @@ func mergeConfigsLeft(cfg1, cfg2 *Config) *Config {
 func GetConfig(path string) (*Config, error) {
 	var err error
 	var fileCfg *Config
-	configPath := path
-	if path == "" {
-		configPath = "/etc/directory-manager/config.yaml"
+	configPath := "/etc/directory-manager/config.yaml"
+	if path != "" {
+		configPath = path
 	}
-	fileCfg, err = readConfig(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+	// Check if the config file exists, if not, that's ok
+	if _, err := os.Stat(configPath); err == nil {
+		fileCfg, err = readConfigFile(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to stat config file: %w", err)
 	}
 	envCfg, err := loadEnvironment()
 	if err != nil {
@@ -190,7 +195,7 @@ func GetConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("ldap_server is required")
 	}
 	if cfg.LDAPPort == 0 {
-		cfg.LDAPPort = 686
+		cfg.LDAPPort = 636
 	}
 	if cfg.LDAPUsername == "" {
 		return nil, fmt.Errorf("ldap_username is required")

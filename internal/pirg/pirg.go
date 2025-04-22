@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/uoracs/directory-manager/internal/config"
@@ -501,6 +502,7 @@ func PirgList(ctx context.Context) ([]string, error) {
 		}
 		pirgShortNames = append(pirgShortNames, shortName)
 	}
+	slices.Sort(pirgShortNames)
 	slog.Debug("PIRG names", "pirgShortNames", pirgShortNames)
 	return pirgShortNames, nil
 }
@@ -615,6 +617,7 @@ func PirgListMemberUsernames(ctx context.Context, name string) ([]string, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
+	slices.Sort(members)
 	return members, nil
 }
 
@@ -632,6 +635,7 @@ func PirgListMemberDNs(ctx context.Context, name string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
+	slices.Sort(members)
 	return members, nil
 }
 
@@ -649,6 +653,7 @@ func PirgListAdminUsernames(ctx context.Context, name string) ([]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
+	slices.Sort(admins)
 	return admins, nil
 }
 
@@ -758,7 +763,7 @@ func PirgSubgroupList(ctx context.Context, pirgName string) ([]string, error) {
 	for i, subgroup := range subgroups {
 		shortNames[i] = getPIRGSubgroupShortName(pirgName, subgroup)
 	}
-
+	slices.Sort(shortNames)
 	return shortNames, nil
 }
 
@@ -851,6 +856,7 @@ func PirgSubgroupListMemberUsernames(ctx context.Context, pirgName string, subgr
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
+	slices.Sort(members)
 	return members, nil
 }
 
@@ -869,6 +875,7 @@ func PirgSubgroupListMemberDNs(ctx context.Context, pirgName string, subgroupNam
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
+	slices.Sort(members)
 	return members, nil
 }
 
@@ -975,6 +982,7 @@ func PirgSubgroupListNames(ctx context.Context, pirgName string) ([]string, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRG subgroups: %w", err)
 	}
+	slices.Sort(subgroups)
 	return subgroups, nil
 }
 
@@ -994,5 +1002,6 @@ func PirgSubgroupListDNs(ctx context.Context, pirgName string) ([]string, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PIRG subgroups: %w", err)
 	}
+	slices.Sort(subgroups)
 	return subgroups, nil
 }
