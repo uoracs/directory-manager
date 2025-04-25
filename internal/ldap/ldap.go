@@ -211,6 +211,36 @@ func GetGroupMemberDNs(ctx context.Context, groupDN string) ([]string, error) {
 	return members, nil
 }
 
+func GetGroupsForUser(ctx context.Context, userDN string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// Create a new search request to get the groups of the user.
+	searchRequest := ldap.NewSearchRequest(
+		userDN,
+		ldap.ScopeBaseObject,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=*)",
+		[]string{"memberOf"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	if len(sr.Entries) == 0 {
+		return nil, fmt.Errorf("user %q not found", userDN)
+	}
+
+	groups := sr.Entries[0].GetAttributeValues("memberOf")
+	return groups, nil
+}
+
 // GetGroupMemberUsernames retrieves the usernames of all members of a group.
 func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, error) {
 	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
@@ -434,6 +464,36 @@ func GetGroupDNsInOU(ctx context.Context, ouDN string) ([]string, error) {
 	}
 
 	return groupDNs, nil
+}
+
+// GetOUDNsInOU retrieves the distinguished names (DNs) of all organizational units (OUs) in a given organizational unit (OU).
+func getOUDNsInOU(ctx context.Context, ouDN string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	searchRequest := ldap.NewSearchRequest(
+		ouDN,
+		ldap.ScopeSingleLevel,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=organizationalUnit)",
+		[]string{"dn"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	ouDNs := make([]string, len(sr.Entries))
+	for i, entry := range sr.Entries {
+		ouDNs[i] = entry.DN
+	}
+
+	return ouDNs, nil
 }
 
 // DeleteOURecursively deletes an organizational unit (OU) and all its contents.

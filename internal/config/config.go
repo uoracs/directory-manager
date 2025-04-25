@@ -20,8 +20,6 @@ type Config struct {
 	LDAPCephDN       string `yaml:"ldap_ceph_dn"`
 	LDAPMinGid       int    `yaml:"ldap_min_gid"`
 	LDAPMaxGid       int    `yaml:"ldap_max_gid"`
-	LDAPGroupPrefix  string `yaml:"ldap_group_prefix"`
-	LDAPGroupSuffix  string `yaml:"ldap_group_suffix"`
 	DataPath         string `yaml:"data_path"`
 }
 
@@ -82,14 +80,6 @@ func loadEnvironment() (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert LDAP max gid to int: %w", err)
 		}
-	}
-	c.LDAPGroupPrefix, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_GROUP_PREFIX")
-	if found {
-		slog.Debug("Found LDAP group prefix in environment variables")
-	}
-	c.LDAPGroupSuffix, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_GROUP_SUFFIX")
-	if found {
-		slog.Debug("Found LDAP group suffix in environment variables")
 	}
 	dataPath, found := os.LookupEnv("DIRECTORY_MANAGER_DATA_PATH")
 	if found {
@@ -153,12 +143,6 @@ func mergeConfigsLeft(cfg1, cfg2 *Config) *Config {
 	if cfg2.LDAPMaxGid != 0 {
 		cfg1.LDAPMaxGid = cfg2.LDAPMaxGid
 	}
-	if cfg2.LDAPGroupPrefix != "" {
-		cfg1.LDAPGroupPrefix = cfg2.LDAPGroupPrefix
-	}
-	if cfg2.LDAPGroupSuffix != "" {
-		cfg1.LDAPGroupSuffix = cfg2.LDAPGroupSuffix
-	}
 	if cfg2.DataPath != "" {
 		cfg1.DataPath = cfg2.DataPath
 	}
@@ -204,22 +188,22 @@ func GetConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("ldap_password is required")
 	}
 	if cfg.LDAPUsersBaseDN == "" {
-		return nil, fmt.Errorf("ldap_users_base_dn is required")
+		cfg.LDAPUsersBaseDN = "dc=ad,dc=uoregon,dc=edu"
 	}
 	if cfg.LDAPGroupsBaseDN == "" {
-		return nil, fmt.Errorf("ldap_groups_base_dn is required")
+		cfg.LDAPGroupsBaseDN = "ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
 	}
 	if cfg.LDAPPirgDN == "" {
-		return nil, fmt.Errorf("ldap_pirg_dn is required")
+		cfg.LDAPPirgDN = "ou=PIRGS,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
 	}
 	if cfg.LDAPCephDN == "" {
-		return nil, fmt.Errorf("ldap_ceph_dn is required")
+		cfg.LDAPCephDN = "ou=Ceph,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
 	}
 	if cfg.LDAPMinGid == 0 {
-		return nil, fmt.Errorf("ldap_min_gid is required")
+		cfg.LDAPMinGid = 50000
 	}
 	if cfg.LDAPMaxGid == 0 {
-		return nil, fmt.Errorf("ldap_max_gid is required")
+		cfg.LDAPMaxGid = 60000
 	}
 	if cfg.LDAPMinGid >= cfg.LDAPMaxGid {
 		return nil, fmt.Errorf("ldap_min_gid must be less than ldap_max_gid")

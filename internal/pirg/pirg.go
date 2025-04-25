@@ -14,8 +14,11 @@ import (
 )
 
 var (
-	err   error
-	found bool
+	err                   error
+	found                 bool
+	groupPrefix           = "is.racs.pirg."
+	topLevelUsersGroupDN  = "CN=IS.RACS.Talapas.Users,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
+	topLevelAdminsGroupDN = "CN=IS.RACS.Talapas.PirgAdmins,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
 )
 
 func ConvertPIRGGroupNametoShortName(pirgName string) (string, error) {
@@ -38,7 +41,7 @@ func pirgGroupNameRegex(ctx context.Context) (string, error) {
 	if cfg == nil {
 		return "", fmt.Errorf("config not found in context")
 	}
-	pirgGroupNameRegex := fmt.Sprintf("^%s([a-zA-Z0-9_\\-]+)%s$", cfg.LDAPGroupPrefix, cfg.LDAPGroupSuffix)
+	pirgGroupNameRegex := fmt.Sprintf("^%s([a-zA-Z0-9_\\-]+)$", groupPrefix)
 	slog.Debug("PIRG group name regex", "regex", pirgGroupNameRegex)
 	return pirgGroupNameRegex, nil
 }
@@ -49,7 +52,7 @@ func getPIRGFullName(ctx context.Context, pirgName string) (string, error) {
 	if cfg == nil {
 		return "", fmt.Errorf("config not found in context")
 	}
-	n := fmt.Sprintf("%s%s%s", cfg.LDAPGroupPrefix, pirgName, cfg.LDAPGroupSuffix)
+	n := fmt.Sprintf("%s%s", groupPrefix, pirgName)
 	slog.Debug("PIRG full name", "name", n)
 	return n, nil
 }
@@ -60,7 +63,7 @@ func getPIRGAdminsGroupFullName(ctx context.Context, pirgName string) (string, e
 	if cfg == nil {
 		return "", fmt.Errorf("config not found in context")
 	}
-	n := fmt.Sprintf("%s%s%s.admins", cfg.LDAPGroupPrefix, pirgName, cfg.LDAPGroupSuffix)
+	n := fmt.Sprintf("%s%s.admins", groupPrefix, pirgName)
 	slog.Debug("PIRG admins group full name", "name", n)
 	return n, nil
 }
@@ -71,7 +74,7 @@ func getPIRGPIGroupFullName(ctx context.Context, pirgName string) (string, error
 	if cfg == nil {
 		return "", fmt.Errorf("config not found in context")
 	}
-	n := fmt.Sprintf("%s%s%s.pi", cfg.LDAPGroupPrefix, pirgName, cfg.LDAPGroupSuffix)
+	n := fmt.Sprintf("%s%s.pi", groupPrefix, pirgName)
 	slog.Debug("PIRG PI group full name", "name", n)
 	return n, nil
 }
@@ -243,6 +246,228 @@ func getPIRGSubgroupName(ctx context.Context, pirgName string, subgroupName stri
 	return subgroupFullName, nil
 }
 
+// getAllPIRGDNs returns all the PIRG DNs in the LDAP directory.
+func getAllPIRGDNs(ctx context.Context) ([]string, error) {
+	slog.Debug("Getting all PIRG DNs")
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return nil, fmt.Errorf("config not found in context")
+	}
+	allGroupNamesInPIRGsOU, err := ld.GetGroupNamesInOU(ctx, cfg.LDAPPirgDN, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get group names in PIRGs OU: %w", err)
+	}
+	pirgGroupNameRegex, err := pirgGroupNameRegex(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PIRG group name regex: %w", err)
+	}
+	var pirgDNs []string
+	for _, groupName := range allGroupNamesInPIRGsOU {
+		slog.Debug("Checking group name", "groupName", groupName)
+		if matched, _ := regexp.MatchString(pirgGroupNameRegex, groupName); matched {
+			pirgDN, found, err := ld.GetGroupDN(ctx, groupName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get group DN: %w", err)
+			}
+			if found {
+				pirgDNs = append(pirgDNs, pirgDN)
+			}
+		}
+	}
+
+	return pirgDNs, nil
+}
+
+// addUserToTopLevelUsersGroup adds a user to the top level users group.
+func addUserToTopLevelUsersGroup(ctx context.Context, member string) error {
+	slog.Debug("Adding user to top level users group", "member", member)
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return fmt.Errorf("config not found in context")
+	}
+	userDN, err := getUserDN(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to get user DN: %w", err)
+	}
+	inGroup, err := ld.UserInGroup(ctx, topLevelUsersGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if inGroup {
+		slog.Debug("User already in top level users group", "userDN", userDN, "topLevelUsersGroupDN", topLevelUsersGroupDN)
+		return nil
+	}
+	err = ld.AddUserToGroup(ctx, topLevelUsersGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to add user %s to users group: %w", member, err)
+	}
+	slog.Debug("Added user to top level users group", "member", member)
+	return nil
+}
+
+// addUserToTopLevelAdminsGroup adds a user to the top level admins group.
+func addUsertoTopLevelAdminsGroup(ctx context.Context, member string) error {
+	slog.Debug("Adding user to top level admins group", "member", member)
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return fmt.Errorf("config not found in context")
+	}
+	userDN, err := getUserDN(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to get user DN: %w", err)
+	}
+	inGroup, err := ld.UserInGroup(ctx, topLevelAdminsGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if inGroup {
+		slog.Debug("User already in top level admins group", "userDN", userDN, "topLevelAdminsGroupDN", topLevelAdminsGroupDN)
+		return nil
+	}
+	err = ld.AddUserToGroup(ctx, topLevelAdminsGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to add user %s to admins group: %w", member, err)
+	}
+	slog.Debug("Added user to top level admins group", "member", member)
+	return nil
+}
+
+// removeUserFromTopLevelUsersGroup removes a user from the top level users group.
+func removeUserFromTopLevelUsersGroup(ctx context.Context, member string) error {
+	slog.Debug("Removing user from top level users group", "member", member)
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return fmt.Errorf("config not found in context")
+	}
+	userDN, err := getUserDN(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to get user DN: %w", err)
+	}
+	inGroup, err := ld.UserInGroup(ctx, topLevelUsersGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if !inGroup {
+		slog.Debug("User not in top level users group", "userDN", userDN, "topLevelUsersGroupDN", topLevelUsersGroupDN)
+		return nil
+	}
+	err = ld.RemoveUserFromGroup(ctx, topLevelUsersGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to remove user %s from users group: %w", member, err)
+	}
+	slog.Debug("Removed user from top level users group", "member", member)
+	return nil
+}
+
+// removeUserFromTopLevelAdminsGroup removes a user from the top level admins group.
+func removeUserFromTopLevelAdminsGroup(ctx context.Context, member string) error {
+	slog.Debug("Removing user from top level admins group", "member", member)
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return fmt.Errorf("config not found in context")
+	}
+	userDN, err := getUserDN(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to get user DN: %w", err)
+	}
+	inGroup, err := ld.UserInGroup(ctx, topLevelAdminsGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if !inGroup {
+		slog.Debug("User not in top level admins group", "userDN", userDN, "topLevelAdminsGroupDN", topLevelAdminsGroupDN)
+		return nil
+	}
+	err = ld.RemoveUserFromGroup(ctx, topLevelAdminsGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to remove user %s from admins group: %w", member, err)
+	}
+	slog.Debug("Removed user from top level admins group", "member", member)
+	return nil
+}
+
+// userInAnyPIRG checks if the user is in any PIRG.
+func userInAnyPIRG(ctx context.Context, username string) (bool, error) {
+	slog.Debug("Checking if user is in any PIRG", "username", username)
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return false, fmt.Errorf("config not found in context")
+	}
+	userDN, err := getUserDN(ctx, username)
+	if err != nil {
+		return false, fmt.Errorf("failed to get user DN: %w", err)
+	}
+	userGroups, err := ld.GetGroupsForUser(ctx, userDN)
+	if err != nil {
+		return false, fmt.Errorf("failed to get user groups: %w", err)
+	}
+	for _, groupDN := range userGroups {
+		groupName, err := ld.ConvertDNToObjectName(groupDN)
+		if err != nil {
+			return false, fmt.Errorf("failed to convert DN to object name: %w", err)
+		}
+		if strings.HasPrefix(groupName, groupPrefix) {
+			slog.Debug("User found in some PIRG", "userDN", userDN, "groupDN", groupDN)
+			return true, nil
+		}
+	}
+	slog.Debug("User not found in any PIRG")
+	return false, nil
+}
+
+// userIsAdminInAnyPIRG checks if the user is an admin in any PIRG.
+func userIsAdminInAnyPIRG(ctx context.Context, username string) (bool, error) {
+	slog.Debug("Checking if user is admin in any PIRG", "username", username)
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return false, fmt.Errorf("config not found in context")
+	}
+	userDN, err := getUserDN(ctx, username)
+	if err != nil {
+		return false, fmt.Errorf("failed to get user DN: %w", err)
+	}
+	userGroups, err := ld.GetGroupsForUser(ctx, userDN)
+	if err != nil {
+		return false, fmt.Errorf("failed to get user groups: %w", err)
+	}
+	for _, groupDN := range userGroups {
+		groupName, err := ld.ConvertDNToObjectName(groupDN)
+		if err != nil {
+			return false, fmt.Errorf("failed to convert DN to object name: %w", err)
+		}
+		// This is gross, but whatever
+		// Each groupName returned could be anything from "is.racs.pirg.somepirg"
+		//   to "is.racs.pirg.somepirg.admins", so we strip off the prefix
+		//	 which leaves "somepirg" or "somepirg.admins",
+		//   and since we want to get the admins group, we check if the name
+		//   contains a period, which means it's something OTHER than the pirg name
+		//	 and we ignore it. we only want to get the pirg name from the normal pirg group,
+		//	 not the admins, pi, or other groups.
+		if strings.HasPrefix(groupName, groupPrefix) {
+			pirgName := strings.TrimPrefix(groupName, groupPrefix)
+			if strings.Contains(pirgName, ".") {
+				// this is admins,pi, or subgroup, ignore it
+				continue
+			}
+			pirgAdminsGroupDN, err := getPIRGAdminsGroupDN(ctx, pirgName)
+			if err != nil {
+				return false, fmt.Errorf("failed to get PIRG admins group DN: %w", err)
+			}
+			inGroup, err := ld.UserInGroup(ctx, pirgAdminsGroupDN, userDN)
+			if err != nil {
+				return false, fmt.Errorf("failed to check if user is in group: %w", err)
+			}
+			if inGroup {
+				slog.Debug("User found as admin in PIRG", "userDN", userDN, "groupDN", groupDN)
+				return true, nil
+			}
+			continue
+		}
+	}
+	slog.Debug("User not found as admin in any PIRG")
+	return false, nil
+}
+
 // PirgExists checks if the PIRG with the given name exists.
 func PirgExists(ctx context.Context, name string) (bool, error) {
 	// Check if the PIRG with the given name exists
@@ -371,6 +596,8 @@ func PirgCreate(ctx context.Context, pirgName string, piUsername string) error {
 	return nil
 }
 
+// PirgDelete deletes the PIRG with the given name.
+// It will error if there are any members in the group.
 func PirgDelete(ctx context.Context, pirgName string) error {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
@@ -379,6 +606,22 @@ func PirgDelete(ctx context.Context, pirgName string) error {
 	pirgOUDN, err := getPIRGOUDN(ctx, pirgName)
 	if err != nil {
 		return fmt.Errorf("failed to get PIRG DN: %w", err)
+	}
+	// Check if the PIRG exists
+	pirgDN, found, err := findPIRGDN(ctx, pirgName)
+	if err != nil {
+		return fmt.Errorf("failed to find PIRG DN: %w", err)
+	}
+	if !found {
+		slog.Debug("PIRG not found", "name", pirgName)
+		return nil
+	}
+	members, err := ld.GetGroupMemberUsernames(ctx, pirgDN)
+	if err != nil {
+		return fmt.Errorf("failed to get group members: %w", err)
+	}
+	if len(members) > 1 {
+		return fmt.Errorf("PIRG %s has non-PI members, cannot delete", pirgName)
 	}
 	err = ld.DeleteOURecursively(ctx, pirgOUDN)
 	if err != nil {
@@ -539,11 +782,21 @@ func PirgAddMember(ctx context.Context, pirgName string, member string) error {
 		return fmt.Errorf("failed to add user %s to PIRG %s: %w", member, pirgName, err)
 	}
 	slog.Debug("Added user to PIRG", "userDN", userDN, "pirgDN", pirgDN)
+
+	// Add the user to the top level users group
+	err = addUserToTopLevelUsersGroup(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to add user %s to top level users group: %w", member, err)
+	}
+
 	return nil
 }
 
+// PirgRemoveMember removes a member from the PIRG with the given name.
+//
+// It will remove them from the PIRG group, all subgroups, the admin group, and the PI group.
+// If the user is not a member of any other PIRGs, they will also be removed from the top level users and admins groups.
 func PirgRemoveMember(ctx context.Context, name string, member string) error {
-	// Remove a member from the PIRG with the given name
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return fmt.Errorf("config not found in context")
@@ -565,6 +818,20 @@ func PirgRemoveMember(ctx context.Context, name string, member string) error {
 	if !inGroup {
 		slog.Debug("User not in PIRG", "userDN", userDN, "pirgDN", pirgDN)
 		return nil
+	}
+
+	// Check if the user is the PI of the PIRG
+	pirgPIGroupDN, err := getPIRGPIGroupDN(ctx, name)
+	if err != nil {
+		return fmt.Errorf("failed to get PIRG PI group DN: %w", err)
+	}
+	inGroup, err = ld.UserInGroup(ctx, pirgPIGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	// if user is PI, error
+	if inGroup {
+		return fmt.Errorf("user %s is the PI of PIRG %s, cannot remove without setting a new PI", member, name)
 	}
 
 	// Remove the user from the PIRG group
@@ -599,6 +866,71 @@ func PirgRemoveMember(ctx context.Context, name string, member string) error {
 		if err != nil {
 			return fmt.Errorf("failed to remove user %s from PIRG subgroup %s: %w", member, subgroupDN, err)
 		}
+		slog.Debug("Removed user from subgroup", "subgroupDN", subgroupDN, "userDN", userDN)
+	}
+
+	// Remove the user from the PIRG Admins group if they're an admin
+	pirgAdminsGroupDN, err := getPIRGAdminsGroupDN(ctx, name)
+	if err != nil {
+		return fmt.Errorf("failed to get PIRG admins group DN: %w", err)
+	}
+	inGroup, err = ld.UserInGroup(ctx, pirgAdminsGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if inGroup {
+		slog.Debug("User is an admin, removing from PIRG admins group", "userDN", userDN, "pirgAdminsGroupDN", pirgAdminsGroupDN)
+		err = ld.RemoveUserFromGroup(ctx, pirgAdminsGroupDN, userDN)
+		if err != nil {
+			return fmt.Errorf("failed to remove user %s from PIRG admins group %s: %w", member, name, err)
+		}
+		slog.Debug("Removed user from PIRG admins group", "userDN", userDN, "pirgAdminsGroupDN", pirgAdminsGroupDN)
+	}
+
+	// Remove the user from the PIRG PI group if they're a PI
+	pirgPIGroupDN, err = getPIRGPIGroupDN(ctx, name)
+	if err != nil {
+		return fmt.Errorf("failed to get PIRG PI group DN: %w", err)
+	}
+	inGroup, err = ld.UserInGroup(ctx, pirgPIGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if inGroup {
+		slog.Debug("User is a PI, removing from PIRG PI group", "userDN", userDN, "pirgPIGroupDN", pirgPIGroupDN)
+		err = ld.RemoveUserFromGroup(ctx, pirgPIGroupDN, userDN)
+		if err != nil {
+			return fmt.Errorf("failed to remove user %s from PIRG PI group %s: %w", member, name, err)
+		}
+		slog.Debug("Removed user from PIRG PI group", "userDN", userDN, "pirgPIGroupDN", pirgPIGroupDN)
+	}
+
+	// Remove the user from the top level admins group if they are not an admin in any other PIRG
+	adminInAnyPIRG, err := userIsAdminInAnyPIRG(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is admin in any PIRG: %w", err)
+	}
+	if !adminInAnyPIRG {
+		err = removeUserFromTopLevelAdminsGroup(ctx, member)
+		if err != nil {
+			return fmt.Errorf("failed to remove user %s from top level admins group: %w", member, err)
+		}
+	} else {
+		slog.Debug("User still an admin in another PIRG, not removing from top level admin group", "userDN", userDN)
+	}
+
+	// Remove the user from the top level users group if they are not in any other PIRG
+	inAnyPIRG, err := userInAnyPIRG(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in any PIRG: %w", err)
+	}
+	if !inAnyPIRG {
+		err = removeUserFromTopLevelUsersGroup(ctx, member)
+		if err != nil {
+			return fmt.Errorf("failed to remove user %s from top level users group: %w", member, err)
+		}
+	} else {
+		slog.Debug("User still in another PIRG, not removing from top level user group", "userDN", userDN)
 	}
 	return nil
 }
@@ -621,8 +953,8 @@ func PirgListMemberUsernames(ctx context.Context, name string) ([]string, error)
 	return members, nil
 }
 
+// PirgListMemberDNs lists all member DNs of the PIRG with the given name.
 func PirgListMemberDNs(ctx context.Context, name string) ([]string, error) {
-	// List all members of the PIRG with the given name
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return nil, fmt.Errorf("config not found in context")
@@ -639,8 +971,8 @@ func PirgListMemberDNs(ctx context.Context, name string) ([]string, error) {
 	return members, nil
 }
 
+// PirgListAdminUsernames lists all admin usernames of the PIRG with the given name.
 func PirgListAdminUsernames(ctx context.Context, name string) ([]string, error) {
-	// List all admins of the PIRG with the given name
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return nil, fmt.Errorf("config not found in context")
@@ -659,7 +991,6 @@ func PirgListAdminUsernames(ctx context.Context, name string) ([]string, error) 
 
 // PirgAddAdmin adds an admin to the PIRG with the given name.
 func PirgAddAdmin(ctx context.Context, pirgName string, adminUsername string) error {
-	// Add an admin to the PIRG with the given name
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return fmt.Errorf("config not found in context")
@@ -673,12 +1004,32 @@ func PirgAddAdmin(ctx context.Context, pirgName string, adminUsername string) er
 		return fmt.Errorf("failed to get user DN: %w", err)
 	}
 
-	// Check if the user is already an admin of the PIRG
-	inGroup, err := ld.UserInGroup(ctx, adminGroupDN, userDN)
+	// Check if the PIRG exists
+	pirgDN, found, err := findPIRGDN(ctx, pirgName)
+	if err != nil {
+		return fmt.Errorf("failed to find PIRG DN: %w", err)
+	}
+	if !found {
+		slog.Debug("PIRG not found", "name", pirgName)
+		return fmt.Errorf("PIRG %s not found", pirgName)
+	}
+
+	// Check if the user is a member of the PIRG
+	inPIRG, err := ld.UserInGroup(ctx, pirgDN, userDN)
 	if err != nil {
 		return fmt.Errorf("failed to check if user is in group: %w", err)
 	}
-	if inGroup {
+	if !inPIRG {
+		slog.Debug("User not in PIRG", "userDN", userDN, "pirgDN", pirgDN)
+		return fmt.Errorf("user %s is not a member of PIRG %s", adminUsername, pirgName)
+	}
+
+	// Check if the user is already an admin of the PIRG
+	inAdminsGroup, err := ld.UserInGroup(ctx, adminGroupDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is in group: %w", err)
+	}
+	if inAdminsGroup {
 		slog.Debug("User already in PIRG admins group", "userDN", userDN, "pirgDN", adminGroupDN)
 		return nil
 	}
@@ -689,6 +1040,13 @@ func PirgAddAdmin(ctx context.Context, pirgName string, adminUsername string) er
 		return fmt.Errorf("failed to add admin %s to PIRG %s: %w", adminUsername, pirgName, err)
 	}
 	slog.Debug("Added admin to PIRG", "userDN", userDN, "pirgDN", adminGroupDN)
+
+	// Add the user to the top level admins group
+	err = addUsertoTopLevelAdminsGroup(ctx, adminUsername)
+	if err != nil {
+		return fmt.Errorf("failed to add admin %s to top level admins group: %w", adminUsername, err)
+	}
+
 	return nil
 }
 
@@ -724,6 +1082,21 @@ func PirgRemoveAdmin(ctx context.Context, pirgName string, adminUsername string)
 		return fmt.Errorf("failed to remove admin %s from PIRG %s: %w", adminUsername, pirgName, err)
 	}
 	slog.Debug("Removed admin from PIRG", "userDN", userDN, "pirgDN", adminGroupDN)
+
+	// Remove the user from the top level admins if they are not an admin of any other PIRG
+	isAdminInAnotherPIRG, err := userIsAdminInAnyPIRG(ctx, adminUsername)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is admin in any PIRG: %w", err)
+	}
+	if !isAdminInAnotherPIRG {
+		err = removeUserFromTopLevelAdminsGroup(ctx, adminUsername)
+		if err != nil {
+			return fmt.Errorf("failed to remove admin %s from top level admins group: %w", adminUsername, err)
+		}
+	} else {
+		slog.Debug("User still an admin in another PIRG, not removing from top level admins group", "userDN", userDN)
+	}
+
 	return nil
 }
 
