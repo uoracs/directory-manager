@@ -18,6 +18,7 @@ type Config struct {
 	LDAPGroupsBaseDN string `yaml:"ldap_groups_base_dn"`
 	LDAPPirgDN       string `yaml:"ldap_pirg_dn"`
 	LDAPCephDN       string `yaml:"ldap_ceph_dn"`
+	LDAPSoftwareDN   string `yaml:"ldap_software_dn"`
 	LDAPMinGid       int    `yaml:"ldap_min_gid"`
 	LDAPMaxGid       int    `yaml:"ldap_max_gid"`
 	DataPath         string `yaml:"data_path"`
@@ -64,6 +65,12 @@ func loadEnvironment() (*Config, error) {
 	c.LDAPCephDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_CEPH_DN")
 	if found {
 		slog.Debug("Found LDAP Ceph DN in environment variables")
+		// fmt.Println("LDAPCephDN was found successfully")
+	}
+	c.LDAPSoftwareDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_SOFTWARE_DN")
+	if found {
+		slog.Debug("Found LDAP Software DN in environment variables")
+		// fmt.Println("LDAPSoftwareDN was found successfully")
 	}
 	mingid, found := os.LookupEnv("DIRECTORY_MANAGER_LDAP_MIN_GID")
 	if found {
@@ -137,6 +144,9 @@ func mergeConfigsLeft(cfg1, cfg2 *Config) *Config {
 	if cfg2.LDAPCephDN != "" {
 		cfg1.LDAPCephDN = cfg2.LDAPCephDN
 	}
+	if cfg2.LDAPSoftwareDN != "" {
+		cfg1.LDAPSoftwareDN = cfg2.LDAPSoftwareDN
+	}
 	if cfg2.LDAPMinGid != 0 {
 		cfg1.LDAPMinGid = cfg2.LDAPMinGid
 	}
@@ -198,6 +208,9 @@ func GetConfig(path string) (*Config, error) {
 	}
 	if cfg.LDAPCephDN == "" {
 		cfg.LDAPCephDN = "ou=Ceph,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
+	}
+	if cfg.LDAPSoftwareDN == "" {
+		cfg.LDAPSoftwareDN = "ou=Software,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
 	}
 	if cfg.LDAPMinGid == 0 {
 		cfg.LDAPMinGid = 50000

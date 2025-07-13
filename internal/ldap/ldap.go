@@ -240,6 +240,44 @@ func GetGroupsForUser(ctx context.Context, userDN string) ([]string, error) {
 	groups := sr.Entries[0].GetAttributeValues("memberOf")
 	return groups, nil
 }
+// GetGroupMemberUsernames retrieves the usernames of all members of a group.
+func GetCephGroupMemberUsernames(ctx context.Context, baseDN string, groupFullName string) ([]string, error) {
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return nil, fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// Create a new search request to get the members of the group.
+	searchRequest := ldap.NewSearchRequest(
+    	baseDN,
+	    ldap.ScopeWholeSubtree,
+	    ldap.NeverDerefAliases,
+	    0, 0, false,
+	    groupFullName, // Or use "(cn=is.racs.ceph.*)" for all CEPH groups
+	    []string{"dn", "member"},     // What attributes to return
+	    nil,
+	)
+	
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	if len(sr.Entries) == 0 {
+		return nil, fmt.Errorf("group %q not found", baseDN)
+	}
+
+	members := sr.Entries[0].GetAttributeValues("member")
+	usernames := make([]string, len(members))
+	for i, member := range members {
+		u, err := ConvertDNToObjectName(member)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert DN to username: %w", err)
+		}
+		usernames[i] = u
+	}
+	return usernames, nil
+}
 
 // GetGroupMemberUsernames retrieves the usernames of all members of a group.
 func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, error) {
@@ -258,7 +296,6 @@ func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, err
 		[]string{"member"},
 		nil,
 	)
-
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search LDAP: %w", err)

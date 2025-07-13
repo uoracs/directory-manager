@@ -39,6 +39,8 @@ func GetNextGidNumber(ctx context.Context) (int, error) {
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		return 0, fmt.Errorf("failed to search LDAP: %w", err)
+
+
 	}
 	for _, entry := range sr.Entries {
 		gid, err := strconv.Atoi(entry.GetAttributeValue("gidNumber"))

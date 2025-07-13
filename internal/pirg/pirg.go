@@ -938,6 +938,7 @@ func PirgRemoveMember(ctx context.Context, name string, member string) error {
 func PirgListMemberUsernames(ctx context.Context, name string) ([]string, error) {
 	// List all members of the PIRG with the given name
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	fmt.Println("Pirg cfg:", cfg)
 	if cfg == nil {
 		return nil, fmt.Errorf("config not found in context")
 	}
@@ -946,6 +947,7 @@ func PirgListMemberUsernames(ctx context.Context, name string) ([]string, error)
 		return nil, fmt.Errorf("failed to get PIRG DN: %w", err)
 	}
 	members, err := ld.GetGroupMemberUsernames(ctx, pirgDN)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
