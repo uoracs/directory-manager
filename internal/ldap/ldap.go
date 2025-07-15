@@ -240,6 +240,7 @@ func GetGroupsForUser(ctx context.Context, userDN string) ([]string, error) {
 	groups := sr.Entries[0].GetAttributeValues("memberOf")
 	return groups, nil
 }
+
 // GetGroupMemberUsernames retrieves the usernames of all members of a group.
 func GetCephGroupMemberUsernames(ctx context.Context, baseDN string, groupFullName string) ([]string, error) {
 	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
@@ -247,17 +248,29 @@ func GetCephGroupMemberUsernames(ctx context.Context, baseDN string, groupFullNa
 		return nil, fmt.Errorf("LDAP connection not found in context")
 	}
 
+	// searchRequest := ldap.NewSearchRequest(
+	// 	groupDN,
+	// 	ldap.ScopeBaseObject,
+	// 	ldap.NeverDerefAliases,
+	// 	0, 0, false,
+	// 	"(objectClass=*)",
+	// 	[]string{"member"},
+	// 	nil,
+	// )
 	// Create a new search request to get the members of the group.
+	fmt.Println(groupFullName)
+	testDN := fmt.Sprintf("cn=%s,ou=Ceph,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu", groupFullName)
 	searchRequest := ldap.NewSearchRequest(
-    	baseDN,
-	    ldap.ScopeWholeSubtree,
-	    ldap.NeverDerefAliases,
-	    0, 0, false,
-	    groupFullName, // Or use "(cn=is.racs.ceph.*)" for all CEPH groups
-	    []string{"dn", "member"},     // What attributes to return
-	    nil,
+		testDN,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectClass=*)",
+		[]string{"member"}, // What attributes to return
+		nil,
 	)
-	
+	fmt.Printf("ceph search request: %+v\n", searchRequest)
+
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search LDAP: %w", err)
@@ -296,6 +309,7 @@ func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, err
 		[]string{"member"},
 		nil,
 	)
+	fmt.Printf("norm search request: %+v\n", searchRequest)
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search LDAP: %w", err)

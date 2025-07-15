@@ -27,10 +27,10 @@ type Config struct {
 }
 
 var (
-	err                   error
-	found                 bool
-	groupPrefix           = "is.racs.ceph."
-	topLevelUsersGroupDN  = "CN=IS.RACS.Talapas.Users,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
+	err                  error
+	found                bool
+	groupPrefix          = "is.racs.ceph."
+	topLevelUsersGroupDN = "CN=IS.RACS.Talapas.Users,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
 )
 
 func ConvertCephGroupNametoShortName(cephName string) (string, error) {
@@ -91,7 +91,7 @@ func CephExists(ctx context.Context, name string) (bool, error) {
 }
 
 func CephList(ctx context.Context) ([]string, error) {
-	// List all CEPH groups 
+	// List all CEPH groups
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return nil, fmt.Errorf("config not found in context")
@@ -166,7 +166,7 @@ func getCEPHOUDN(ctx context.Context, name string) (string, error) {
 	baseDN := cfg.LDAPCephDN
 	// n := fmt.Sprintf("%s", name, baseDN)
 	slog.Debug("CEPH OU DN", "dn", baseDN)
-	
+
 	return baseDN, nil
 }
 
@@ -182,14 +182,15 @@ func CephListMemberUsernames(ctx context.Context, name string) ([]string, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CEPH DN: %w", err)
 	}
-	fullNameCN := fmt.Sprintf("(cn=%s)", fullName)
-	members, err := ld.GetCephGroupMemberUsernames(ctx, baseDN, fullNameCN)
+	groupCN := fmt.Sprintf("cn=%s,%s", fullName, baseDN)
+	members, err := ld.GetGroupMemberUsernames(ctx, groupCN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
 	slices.Sort(members)
 	return members, nil
 }
+
 // CephAddMember adds a member to the CEPH group with the given name.
 func CephAddMember(ctx context.Context, cephName string, member string) error {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
@@ -286,7 +287,7 @@ func CephRemoveMember(ctx context.Context, name string, member string) error {
 		return fmt.Errorf("failed to get user DN: %w", err)
 	}
 
-	// Check if the user is a member of the CEPH 
+	// Check if the user is a member of the CEPH
 	inGroup, err := ld.UserInGroup(ctx, cephDN, userDN)
 	if err != nil {
 		return fmt.Errorf("failed to check if user is in group: %w", err)
