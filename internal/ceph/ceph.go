@@ -13,19 +13,6 @@ import (
 	ld "github.com/uoracs/directory-manager/internal/ldap"
 )
 
-type Config struct {
-	LDAPServer       string `yaml:"ldap_server"`
-	LDAPPort         int    `yaml:"ldap_port"`
-	LDAPUsername     string `yaml:"ldap_username"`
-	LDAPPassword     string `yaml:"ldap_password"`
-	LDAPUsersBaseDN  string `yaml:"ldap_users_base_dn"`
-	LDAPGroupsBaseDN string `yaml:"ldap_groups_base_dn"`
-	LDAPCephDN       string `yaml:"ldap_ceph_dn"`
-	LDAPMinGid       int    `yaml:"ldap_min_gid"`
-	LDAPMaxGid       int    `yaml:"ldap_max_gid"`
-	DataPath         string `yaml:"data_path"`
-}
-
 var (
 	err                  error
 	found                bool
@@ -91,7 +78,6 @@ func CephExists(ctx context.Context, name string) (bool, error) {
 }
 
 func CephList(ctx context.Context) ([]string, error) {
-	// List all CEPH groups
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
 		return nil, fmt.Errorf("config not found in context")
@@ -198,12 +184,10 @@ func CephAddMember(ctx context.Context, cephName string, member string) error {
 		return fmt.Errorf("config not found in context")
 	}
 	cephDN, err := getCEPHDN(ctx, cephName)
-	fmt.Println("cephDN:", cephDN)
 	if err != nil {
 		return fmt.Errorf("failed to get CEPH DN: %w", err)
 	}
 	userDN, err := getUserDN(ctx, member)
-	fmt.Println("userDN:", userDN)
 	if err != nil {
 		return fmt.Errorf("failed to get user DN: %w", err)
 	}
@@ -278,7 +262,6 @@ func CephRemoveMember(ctx context.Context, name string, member string) error {
 		return fmt.Errorf("config not found in context")
 	}
 	cephDN, err := getCEPHDN(ctx, name)
-	fmt.Println("cephDN maybe not:", cephDN)
 	if err != nil {
 		return fmt.Errorf("failed to get CEPH DN: %w", err)
 	}
@@ -338,7 +321,6 @@ func CephCreate(ctx context.Context, cephName string) error {
 	slog.Debug("All CEPHs DN", "allCephsDN", allCephsDN)
 
 	slog.Debug("Created CEPH OU", "name", cephName)
-	// Create the CEPH group object
 	cephFullName, err := getCEPHFullName(ctx, cephName)
 	if err != nil {
 		return fmt.Errorf("failed to get CEPH full name: %w", err)
@@ -358,10 +340,9 @@ func CephDelete(ctx context.Context, cephName string) error {
 	if cfg == nil {
 		return fmt.Errorf("config not found in context")
 	}
-	// Check if the Ceph group exists
 	cephDN, found, err := findCEPHDN(ctx, cephName)
 	if err != nil {
-		return fmt.Errorf("failed to find PIRG DN: %w", err)
+		return fmt.Errorf("failed to find CEPH DN: %w", err)
 	}
 	if !found {
 		slog.Debug("Ceph group not found", "name", cephName)
@@ -370,21 +351,18 @@ func CephDelete(ctx context.Context, cephName string) error {
 	slog.Debug("Ceph DN", cephDN, err)
 
 	baseDN := cfg.LDAPCephDN
-	// fmt.Println("baseDN:", baseDN)
-	// fmt.Println("cephDN:", cephDN)
 	fullName, err := getCEPHFullName(ctx, cephName)
 	if err != nil {
 		return fmt.Errorf("failed to obtain Ceph group fullname: %w", err)
 	}
-	fullNameCN := fmt.Sprintf("(cn=%s)", fullName)
-	members, err := ld.GetCephGroupMemberUsernames(ctx, baseDN, fullNameCN)
+	fullNameCN := fmt.Sprintf("cn=%s,%s", fullName, baseDN)
+	members, err := ld.GetGroupMemberUsernames(ctx, fullNameCN)
 	if err != nil {
 		return fmt.Errorf("failed to get group members: %w", err)
 	}
 	if len(members) > 0 {
 		return fmt.Errorf("Ceph group is not empty. There are %d members. Please remove all members and try again", len(members))
 	}
-	// fmt.Println("cephOUDN:", cephDN)
 	err = ld.DeleteGroup(ctx, cephDN)
 	if err != nil {
 		return fmt.Errorf("failed to delete CEPH group object: %w", err)

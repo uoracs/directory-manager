@@ -13,19 +13,6 @@ import (
 	ld "github.com/uoracs/directory-manager/internal/ldap"
 )
 
-type Config struct {
-	LDAPServer       string `yaml:"ldap_server"`
-	LDAPPort         int    `yaml:"ldap_port"`
-	LDAPUsername     string `yaml:"ldap_username"`
-	LDAPPassword     string `yaml:"ldap_password"`
-	LDAPUsersBaseDN  string `yaml:"ldap_users_base_dn"`
-	LDAPGroupsBaseDN string `yaml:"ldap_groups_base_dn"`
-	LDAPSoftwareDN   string `yaml:"ldap_software_dn"`
-	LDAPMinGid       int    `yaml:"ldap_min_gid"`
-	LDAPMaxGid       int    `yaml:"ldap_max_gid"`
-	DataPath         string `yaml:"data_path"`
-}
-
 var (
 	err                   error
 	found                 bool
@@ -118,7 +105,7 @@ func SoftwareList(ctx context.Context) ([]string, error) {
 	for _, sw := range softwareGroupNames {
 		shortName, err := ConvertSoftwareGroupNametoShortName(sw)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert PIRG group name to short name: %w", err)
+			return nil, fmt.Errorf("failed to convert Software group name to short name: %w", err)
 		}
 		softwareShortNames = append(softwareShortNames, shortName)
 	}
@@ -182,17 +169,14 @@ func SoftwareListMemberUsernames(ctx context.Context, name string) ([]string, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SOFTWARE DN: %w", err)
 	}
-	fullNameCN := fmt.Sprintf("(cn=%s)", fullName)
-	// this ld.GetCephGroupMemberUsernames does exactly what I need since the ceph and software groups are nested in 
-	// the same way, unlike PIRGS which are one branch deeper. Could be renamed I suppose....
-	members, err := ld.GetCephGroupMemberUsernames(ctx, baseDN, fullNameCN)
+	fullNameCN := fmt.Sprintf("cn=%s,%s",fullName, baseDN)
+	members, err := ld.GetGroupMemberUsernames(ctx, fullNameCN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}
 	slices.Sort(members)
 	return members, nil
 }
-// Software AddMember adds a member to the SOFTWARE group with the given name.
 func SoftwareAddMember(ctx context.Context, softwareName string, member string) error {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
@@ -284,7 +268,6 @@ func SoftwareRemoveMember(ctx context.Context, name string, member string) error
 		return fmt.Errorf("failed to get user DN: %w", err)
 	}
 
-	// Check if the user is a member of the PIRG
 	inGroup, err := ld.UserInGroup(ctx, softwareDN, userDN)
 	if err != nil {
 		return fmt.Errorf("failed to check if user is in group: %w", err)
@@ -293,7 +276,6 @@ func SoftwareRemoveMember(ctx context.Context, name string, member string) error
 		slog.Debug("User not in SOFTWARE group", "userDN", userDN, "softwareDN", softwareDN)
 		return nil
 	}
-	// Remove the user from the SOFTWARE group
 	err = ld.RemoveUserFromGroup(ctx, softwareDN, userDN)
 	if err != nil {
 		return fmt.Errorf("failed to remove user %s from SOFTWARE %s: %w", member, name, err)
@@ -334,7 +316,6 @@ func SoftwareCreate(ctx context.Context, softwareName string) error {
 	slog.Debug("All softwares DN", "allsoftwaresDN", allsoftwaresDN)
 
 	slog.Debug("Created software OU", "name", softwareName)
-	// Create the software group object
 	softwareFullName, err := getSOFTWAREFullName(ctx, softwareName)
 	if err != nil {
 		return fmt.Errorf("failed to get software full name: %w", err)
@@ -354,10 +335,9 @@ func SoftwareDelete(ctx context.Context, softwareName string) error {
 	if cfg == nil {
 		return fmt.Errorf("config not found in context")
 	}
-	// Check if the software group exists
 	softwareDN, found, err := findSWDN(ctx, softwareName)
 	if err != nil {
-		return fmt.Errorf("failed to find PIRG DN: %w", err)
+		return fmt.Errorf("failed to find Software DN: %w", err)
 	}
 	if !found {
 		slog.Debug("software group not found", "name", softwareName)
@@ -366,24 +346,22 @@ func SoftwareDelete(ctx context.Context, softwareName string) error {
 	slog.Debug("software DN", softwareDN, err)
 
 	baseDN := cfg.LDAPSoftwareDN
-	// fmt.Println("baseDN:", baseDN)
-	// fmt.Println("softwareDN:", softwareDN)
 	fullName, err := getSOFTWAREFullName(ctx, softwareName)
 	if err != nil {
 		return fmt.Errorf("failed to obtain software group fullname: %w", err)
 	}
-	fullNameCN := fmt.Sprintf("(cn=%s)", fullName)
-	members, err := ld.GetCephGroupMemberUsernames(ctx, baseDN, fullNameCN)
+	fullNameCN := fmt.Sprintf("cn=%s,%s", fullName, baseDN)
+	members, err := ld.GetGroupMemberUsernames(ctx, fullNameCN)
 	if err != nil {
 		return fmt.Errorf("failed to get group members: %w", err)
 	}
 	if len(members) > 0 {
 		return fmt.Errorf("software group is not empty. There are %d members. Please remove all members and try again", len(members))
 	}
-	// fmt.Println("softwareOUDN:", softwareDN)
 	err = ld.DeleteGroup(ctx, softwareDN)
 	if err != nil {
 		return fmt.Errorf("failed to delete software group object: %w", err)
 	}
 	return nil
 }
+
