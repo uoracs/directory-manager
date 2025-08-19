@@ -12,6 +12,8 @@ import (
 	"github.com/uoracs/directory-manager/internal/keys"
 	ld "github.com/uoracs/directory-manager/internal/ldap"
 	"github.com/uoracs/directory-manager/internal/pirg"
+	"github.com/uoracs/directory-manager/internal/ceph"
+	"github.com/uoracs/directory-manager/internal/software"
 )
 
 var version = "v1.0.8"
@@ -66,6 +68,42 @@ var CLI struct {
 			} `cmd:"" help:"Manage subgroups."`
 		} `arg:""`
 	} `cmd:"" help:"Manage PIRGs."`
+
+	Nextgidnumber struct {
+	} `cmd:"" help:"Get the next available GID number in the specified range."`
+
+	Ceph struct {
+		List struct {
+		} `cmd:"" help:"Get list of all ceph groups."`
+		Name struct {
+			Create struct {} `cmd:"" help:"Create a new CEPH group."`
+			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
+			Name string `arg:""`
+			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
+			AddMember   struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
+			} `cmd:"" help:"Add members to a CEPH group."`
+			RemoveMember struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
+			} `cmd:"" help:"Remove members from a PIRG."`
+		} `arg:""`
+	} `cmd:"" help:"Manage SOFTWARE groups."`
+	Software struct {
+		List struct {
+		} `cmd:"" help:"Get list of all software groups."`
+		Name struct {
+			Create struct {} `cmd:"" help:"Create a new SOFTWARE."`
+			Delete struct{} `cmd:"" help:"Delete a SOFTWARE."`
+			Name string `arg:""`
+			ListMembers struct{} `cmd:"" help:"List all members of a software group."`
+			AddMember   struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
+			} `cmd:"" help:"Add members to a SOFTWARE group."`
+			RemoveMember struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
+			} `cmd:"" help:"Remove members from a SOFTWARE Group."`
+		} `arg:""`
+	} `cmd:"" help:"Manage SOFTWARE groups."`
 }
 
 type VersionFlag bool
@@ -467,6 +505,204 @@ func main() {
 				fmt.Printf("Error removing member %s from subgroup: %v\n", username, err)
 				os.Exit(1)
 			}
+		}
+	case "nextgidnumber":
+		gid, err := ld.GetNextGidNumber(ctx)
+		if err != nil {
+			fmt.Printf("Error obtaining next gid number: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(gid)
+
+	case "ceph list":
+		ceph_groups, err := ceph.CephList(ctx)
+		if err != nil {
+			fmt.Printf("Error obtaining list of all ceph groups: %v\n", err)
+			os.Exit(1)
+		}
+		if len(ceph_groups) == 0 {
+			fmt.Println("No Ceph groups found.")
+			return
+		}
+		for _, groups := range ceph_groups{
+			fmt.Println(groups)
+		}
+	case "ceph <name> list-members":
+		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking Ceph group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Ceph %s not found.\n", CLI.Ceph.Name.Name)
+			return
+		}
+		members, err := ceph.CephListMemberUsernames(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing members: %v\n", err)
+			os.Exit(1)
+		}
+		for _, member := range members {
+			fmt.Println(member)
+		}
+	case "ceph <name> create":
+		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			fmt.Printf("CEPH group %s already exists.\n", CLI.Ceph.Name.Name)
+			return
+		}
+		err = ceph.CephCreate(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error creating Ceph group: %v\n", err)
+			os.Exit(1)
+		}
+	case "ceph <name> delete":
+		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking Ceph existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("CEPH group %s not found.\n", CLI.Ceph.Name.Name)
+			return
+		}
+		err = ceph.CephDelete(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error deleting CEPH group: %v\n", err)
+			os.Exit(1)
+		}
+	case "ceph <name> add-member <username>":
+		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("CEPH group %s not found.\n", CLI.Ceph.Name.Name)
+			return
+		}
+		for _, username := range CLI.Ceph.Name.AddMember.Usernames {
+			err = ceph.CephAddMember(ctx, CLI.Ceph.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "ceph <name> remove-member <username>":
+		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("CEPH group %s not found.\n", CLI.Ceph.Name.Name)
+			return
+		}
+		for _, username := range CLI.Ceph.Name.RemoveMember.Usernames {
+			err = ceph.CephRemoveMember(ctx, CLI.Ceph.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "software list":
+		software_groups, err := software.SoftwareList(ctx)
+		if err != nil {
+			fmt.Printf("Error obtaining list of all Software groups: %v\n", err)
+			os.Exit(1)
+		}
+		if len(software_groups) == 0 {
+			fmt.Println("No Software groups found.")
+			return
+		}
+		for _, groups := range software_groups{
+			fmt.Println(groups)
+		}
+	case "software <name> list-members":
+		found, err := software.SoftwareExists(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking Software group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Software %s not found.\n", CLI.Software.Name.Name)
+			return
+		}
+		members, err := software.SoftwareListMemberUsernames(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing members: %v\n", err)
+			os.Exit(1)
+		}
+		for _, member := range members {
+			fmt.Println(member)
+		}
+	case "software <name> add-member <username>":
+		found, err := software.SoftwareExists(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking SOFTWARE existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("SOFTWARE group %s not found.\n", CLI.Software.Name.Name)
+			return
+		}
+		for _, username := range CLI.Software.Name.AddMember.Usernames {
+			err = software.SoftwareAddMember(ctx, CLI.Software.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "software <name> remove-member <username>":
+		found, err := software.SoftwareExists(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking SOFTWARE group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("SOFTWARE group %s not found.\n", CLI.Software.Name.Name)
+			return
+		}
+		for _, username := range CLI.Software.Name.RemoveMember.Usernames {
+			err = software.SoftwareRemoveMember(ctx, CLI.Software.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "software <name> create":
+		found, err := software.SoftwareExists(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking software group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			fmt.Printf("software group %s already exists.\n", CLI.Software.Name.Name)
+			return
+		}
+		err = software.SoftwareCreate(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error creating software group: %v\n", err)
+			os.Exit(1)
+		}
+	case "software <name> delete":
+		found, err := software.SoftwareExists(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking software existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("software group %s not found.\n", CLI.Software.Name.Name)
+			return
+		}
+		err = software.SoftwareDelete(ctx, CLI.Software.Name.Name)
+		if err != nil {
+			fmt.Printf("Error deleting software group: %v\n", err)
+			os.Exit(1)
 		}
 	default:
 		fmt.Printf("Unknown command: %s\n", cli.Command())

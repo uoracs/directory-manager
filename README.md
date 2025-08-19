@@ -21,7 +21,8 @@ export DIRECTORY_MANAGER_LDAP_PASSWORD=""
 export DIRECTORY_MANAGER_LDAP_USERS_BASE_DN="dc=company,dc=org"
 export DIRECTORY_MANAGER_LDAP_GROUPS_BASE_DN="ou=Groups,dc=company,dc=org"
 export DIRECTORY_MANAGER_LDAP_PIRG_DN="ou=PIRGS,ou=Groups,dc=company,dc=org"
-export DIRECTORY_MANAGER_LDAP_CEPH_DN="ou=Ceph,ou=Groups,dc=company,dc=org"
+export DIRECTORY_MANAGER_LDAP_CEPH_DN="ou=CEPH,ou=Groups,dc=company,dc=org"
+export DIRECTORY_MANAGER_LDAP_SOFTWARE_DN="ou=SOFTWARE,ou=Groups,dc=company,dc=org"
 export DIRECTORY_MANAGER_LDAP_MIN_GID=50000
 export DIRECTORY_MANAGER_LDAP_MAX_GID=60000
 export DIRECTORY_MANAGER_LDAP_GROUP_PREFIX="myorg.research.pirg."

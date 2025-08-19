@@ -258,7 +258,7 @@ func GetGroupMemberUsernames(ctx context.Context, groupDN string) ([]string, err
 		[]string{"member"},
 		nil,
 	)
-
+	// fmt.Printf("norm search request: %+v\n", searchRequest)
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search LDAP: %w", err)

@@ -946,6 +946,7 @@ func PirgListMemberUsernames(ctx context.Context, name string) ([]string, error)
 		return nil, fmt.Errorf("failed to get PIRG DN: %w", err)
 	}
 	members, err := ld.GetGroupMemberUsernames(ctx, pirgDN)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
 	}

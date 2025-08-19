@@ -7,6 +7,7 @@ ldap_users_base_dn:
 ldap_groups_base_dn:
 ldap_pirg_dn:
 ldap_ceph_dn:
+ldap_software_dn:
 ldap_min_gid:
 ldap_max_gid:
 ldap_group_prefix: ""
