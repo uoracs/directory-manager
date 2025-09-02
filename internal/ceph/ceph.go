@@ -77,6 +77,20 @@ func CephExists(ctx context.Context, name string) (bool, error) {
 	return true, nil
 }
 
+
+func CephGroupGID(ctx context.Context, groupName string) (string, error) {
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return "", fmt.Errorf("config not found in context")
+	}
+
+	gid, err := ld.GetGidOfExistingGroup(ctx, groupName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GID for group %s: %w", groupName, err)
+	}
+
+	return gid, nil
+}
 func CephList(ctx context.Context) ([]string, error) {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {
@@ -105,6 +119,7 @@ func CephList(ctx context.Context) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert CEPH group name to short name: %w", err)
 		}
+
 		cephShortNames = append(cephShortNames, shortName)
 	}
 	slices.Sort(cephShortNames)

@@ -16,7 +16,7 @@ import (
 	"github.com/uoracs/directory-manager/internal/software"
 )
 
-var version = "v1.1.0"
+var version = "v1.1.1"
 
 var CLI struct {
 	Config  string      `help:"Path to the configuration file." short:"c" type:"path"`
@@ -76,6 +76,7 @@ var CLI struct {
 		List struct {
 		} `cmd:"" help:"Get list of all ceph groups."`
 		Name struct {
+			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
 			Create struct {} `cmd:"" help:"Create a new CEPH group."`
 			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
 			Name string `arg:""`
@@ -545,6 +546,14 @@ func main() {
 		for _, member := range members {
 			fmt.Println(member)
 		}
+	case "ceph <name> get-gid":
+		gid, err := ceph.CephGroupGID(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(gid)
+
 	case "ceph <name> create":
 		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
 		if err != nil {

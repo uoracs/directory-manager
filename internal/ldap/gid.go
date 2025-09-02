@@ -18,6 +18,41 @@ func GetDummyGidNumber(ctx context.Context) (int, error) {
 	}
 	return n + 1000, nil
 }
+func GetGidOfExistingGroup(ctx context.Context, groupName string) (string, error) {
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return "", fmt.Errorf("config not found in context")
+	}
+
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return "", fmt.Errorf("LDAP connection not found in context")
+	}
+
+	fullCN := "is.racs.ceph." + groupName // e.g., "is.racs.ceph.flopezlab"
+		searchRequest := ldap.NewSearchRequest(
+		cfg.LDAPCephDN,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		fmt.Sprintf("(&(objectClass=group)(cn=%s))", ldap.EscapeFilter(fullCN)),
+		[]string{"cn", "gidNumber"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	if len(sr.Entries) == 0 {
+		return "", fmt.Errorf("group %s not found", groupName)
+	}
+
+	gidStr := sr.Entries[0].GetAttributeValue("gidNumber")
+
+	return gidStr, nil
+}
 
 func GetNextGidNumber(ctx context.Context) (int, error) {
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
