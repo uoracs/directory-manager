@@ -304,6 +304,102 @@ func CephRemoveMember(ctx context.Context, name string, member string) error {
 	return nil
 }
 
+func CephSetPI(ctx context.Context, cephName string, piName string) error {
+    slog.Debug("Creating CEPH PI group", "cephName", cephName, "piName", piName)
+
+    cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+    if cfg == nil {
+        return fmt.Errorf("config not found in context")
+    }
+
+    cephOUDN, err := getCEPHOUDN(ctx, cephName)
+    if err != nil {
+        return fmt.Errorf("failed to get CEPH OUDN: %w", err)
+    }
+    slog.Debug("Found successfully", "cephOUDN", cephOUDN)
+
+    //is.racs.ceph.<cephName>.pi
+    ceph := fmt.Sprintf("is.racs.ceph.%s", cephName)
+	cephDN := fmt.Sprintf("CN=%s,%s", ceph, cephOUDN)
+    fullName := fmt.Sprintf("is.racs.ceph.%s.pi", cephName)
+    // fmt.Println("PI Group Full Name:", fullName)
+
+    piDN := fmt.Sprintf("CN=%s,%s", fullName, cephOUDN)
+
+    piFound, exists, err := findCEPHDN(ctx, piDN)
+    if err != nil {
+        return fmt.Errorf("failed to check if PI group exists: %w", err)
+    }
+    slog.Debug("PI subgroup already exists", "piDN", piFound)
+
+    if !exists {
+        // Create PI subgroup, should probably integrate this into the ceph volume creation process by default 
+        gidNumber, err := ld.GetNextGidNumber(ctx)
+        if err != nil {
+            return fmt.Errorf("failed to get next GID number: %w", err)
+        }
+        err = ld.CreateGroup(ctx, cephOUDN, fullName, gidNumber)
+        if err != nil {
+            return fmt.Errorf("failed to create PI subgroup: %w", err)
+        }
+        slog.Debug("Created CEPH PI subgroup", "piGroupName", fullName)
+    } else {
+        slog.Debug("PI subgroup already exists", "piDN", piDN)
+    }
+    userDN, err := ld.GetUserDN(ctx, piName)
+    if err != nil {
+        return fmt.Errorf("failed to find user DN for %s: %w", piName, err)
+    }
+    err = ld.AddUserToGroup(ctx, piDN, userDN)
+    if err != nil {
+        return fmt.Errorf("failed to add PI user %s to group %s: %w", piName, piDN, err)
+    }
+    slog.Debug("Added PI to subgroup", "piName", piName, "groupDN", piDN)
+
+	slog.Debug("Adding user to CEPH", "userDN", userDN, "cephDN", cephDN)
+	err = ld.AddUserToGroup(ctx, cephDN, userDN)
+	if err != nil {
+		return fmt.Errorf("failed to add user %s to CEPH %s: %w", piName, cephName, err)
+	}
+	slog.Debug("Added user to CEPH", "userDN", userDN, "CEPHDN", cephDN)
+
+	err = addUserToTopLevelUsersGroup(ctx, piName)
+	if err != nil {
+		return fmt.Errorf("failed to add user %s to top level users group: %w", piName, err)
+	}
+    return nil
+}
+
+// CephPiListMemberUsernames lists all members of the Ceph PI subgroup for the given Ceph group.
+func CephPiListMemberUsername(ctx context.Context, cephName string) ([]string, error) {
+    cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+    if cfg == nil {
+        return nil, fmt.Errorf("config not found in context")
+    }
+
+    fullName := fmt.Sprintf("is.racs.ceph.%s.pi", cephName)
+    cephOUDN, err := getCEPHOUDN(ctx, cephName)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get CEPH OUDN: %w", err)
+    }
+
+    subgroupDN := fmt.Sprintf("CN=%s,%s", fullName, cephOUDN)
+
+    exists, err := ld.DNExists(ctx, subgroupDN)
+    if err != nil {
+        return nil, fmt.Errorf("failed to check if group exists: %w", err)
+    }
+    if !exists {
+        return []string{}, nil
+    }
+
+    members, err := ld.GetGroupMemberUsernames(ctx, subgroupDN)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get group members: %w", err)
+    }
+    return members, nil
+}
+
 func CephCreate(ctx context.Context, cephName string) error {
 	slog.Debug("Creating CEPH group", "name", cephName)
 
@@ -376,7 +472,7 @@ func CephDelete(ctx context.Context, cephName string) error {
 		return fmt.Errorf("failed to get group members: %w", err)
 	}
 	if len(members) > 0 {
-		return fmt.Errorf("Ceph group is not empty. There are %d members. Please remove all members and try again", len(members))
+		return fmt.Errorf("ceph group is not empty. There are %d members. Please remove all members and try again", len(members))
 	}
 	err = ld.DeleteGroup(ctx, cephDN)
 	if err != nil {

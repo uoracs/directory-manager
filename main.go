@@ -77,7 +77,11 @@ var CLI struct {
 		} `cmd:"" help:"Get list of all ceph groups."`
 		Name struct {
 			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
+			GetPI  struct{} `cmd:"" help:"Get the PI of a PIRG."`
 			Create struct {} `cmd:"" help:"Create a new CEPH group."`
+			SetPI struct {
+				PI string `arg:"" name:"username" help:"Names of the PI." type:"name"`
+			} `cmd:"" help:"Set the PI of a new CEPH group."`
 			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
 			Name string `arg:""`
 			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
@@ -553,6 +557,36 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(gid)
+
+	case "ceph <name> get-pi":
+		piName, err := ceph.CephPiListMemberUsername(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if len(piName) == 0 {
+    	    fmt.Println("No PI assigned to this ceph group")
+    	} else {
+    	    for _, name := range piName {
+    	        fmt.Println(name)
+    	    }
+    	}
+
+	case "ceph <name> set-pi <username>":
+		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			slog.Debug("CEPH group already exists")
+		}
+		res := ceph.CephSetPI(ctx, CLI.Ceph.Name.Name, CLI.Ceph.Name.SetPI.PI)
+		if res == nil {
+			return 
+		}
+		fmt.Printf("Error setting pi of ceph group: %s\n", res)
+		return
 
 	case "ceph <name> create":
 		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
