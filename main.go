@@ -12,7 +12,9 @@ import (
 	"github.com/uoracs/directory-manager/internal/keys"
 	ld "github.com/uoracs/directory-manager/internal/ldap"
 	"github.com/uoracs/directory-manager/internal/pirg"
-	"github.com/uoracs/directory-manager/internal/ceph"
+	"github.com/uoracs/directory-manager/internal/cephfs"
+	"github.com/uoracs/directory-manager/internal/cephs3"
+	// "github.com/uoracs/directory-manager/internal/ceph"
 	"github.com/uoracs/directory-manager/internal/software"
 )
 
@@ -72,18 +74,20 @@ var CLI struct {
 	Nextgidnumber struct {
 	} `cmd:"" help:"Get the next available GID number in the specified range."`
 
-	Ceph struct {
+	Cephs3 struct {
 		List struct {
 		} `cmd:"" help:"Get list of all ceph groups."`
 		Name struct {
+			Name string `arg:""`
 			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
-			GetPI  struct{} `cmd:"" help:"Get the PI of a PIRG."`
-			Create struct {} `cmd:"" help:"Create a new CEPH group."`
+			GetOwner  struct{} `cmd:"" help:"Get the PI of a PIRG."`
+			Create struct {
+				Owner string `required:"" help:"Name of the PI." type:"name"`
+			} `cmd:"" help:"Create a new CEPH group."`
 			SetPI struct {
 				PI string `arg:"" name:"username" help:"Names of the PI." type:"name"`
 			} `cmd:"" help:"Set the PI of a new CEPH group."`
 			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
-			Name string `arg:""`
 			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
 			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
@@ -92,7 +96,30 @@ var CLI struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 			} `cmd:"" help:"Remove members from a PIRG."`
 		} `arg:""`
-	} `cmd:"" help:"Manage SOFTWARE groups."`
+	} `cmd:"" name:"cephs3" help:"Manage Ceph s3 buckets groups."`
+	Cephfs struct {
+		List struct {
+		} `cmd:"" help:"Get list of all ceph groups."`
+		Name struct {
+			Name string `arg:""`
+			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
+			GetOwner  struct{} `cmd:"" help:"Get the PI of a PIRG."`
+			Create struct {
+				Owner string `required:"" help:"Name of the PI." type:"name"`
+			} `cmd:"" help:"Create a new CEPH group."`
+			SetPI struct {
+				PI string `arg:"" name:"username" help:"Names of the PI." type:"name"`
+			} `cmd:"" help:"Set the PI of a new CEPH group."`
+			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
+			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
+			AddMember   struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
+			} `cmd:"" help:"Add members to a CEPH group."`
+			RemoveMember struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
+			} `cmd:"" help:"Remove members from a PIRG."`
+		} `arg:""`
+	} `cmd:"" help:"Manage Cephfs POSIX groups."`
 	Software struct {
 		List struct {
 		} `cmd:"" help:"Get list of all software groups."`
@@ -519,30 +546,31 @@ func main() {
 		}
 		fmt.Println(gid)
 
-	case "ceph list":
-		ceph_groups, err := ceph.CephList(ctx)
+	case "cephfs list":
+		cephfs_groups, err := cephfs.CephfsList(ctx)
 		if err != nil {
-			fmt.Printf("Error obtaining list of all ceph groups: %v\n", err)
+			fmt.Printf("Error obtaining list of all cephfs groups: %v\n", err)
 			os.Exit(1)
 		}
-		if len(ceph_groups) == 0 {
-			fmt.Println("No Ceph groups found.")
+		if len(cephfs_groups) == 0 {
+			fmt.Println("No cephfs groups found.")
 			return
 		}
-		for _, groups := range ceph_groups{
+		for _, groups := range cephfs_groups{
 			fmt.Println(groups)
 		}
-	case "ceph <name> list-members":
-		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+
+	case "cephfs <name> list-members":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error checking Ceph group existence: %v\n", err)
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
 			os.Exit(1)
 		}
 		if !found {
-			fmt.Printf("Ceph %s not found.\n", CLI.Ceph.Name.Name)
+			fmt.Printf("cephfs %s not found.\n", CLI.Cephfs.Name.Name)
 			return
 		}
-		members, err := ceph.CephListMemberUsernames(ctx, CLI.Ceph.Name.Name)
+		members, err := cephfs.CephfsListMemberUsernames(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
 			fmt.Printf("Error listing members: %v\n", err)
 			os.Exit(1)
@@ -550,103 +578,233 @@ func main() {
 		for _, member := range members {
 			fmt.Println(member)
 		}
-	case "ceph <name> get-gid":
-		gid, err := ceph.CephGroupGID(ctx, CLI.Ceph.Name.Name)
+	case "cephfs <name> get-gid":
+		gid, err := cephfs.GetCephfsGroupGID(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println(gid)
 
-	case "ceph <name> get-pi":
-		piName, err := ceph.CephPiListMemberUsername(ctx, CLI.Ceph.Name.Name)
+	case "cephfs <name> get-owner":
+		ownerName, err := cephfs.CephfsGetOwnerUsername(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
 			os.Exit(1)
 		}
-		if len(piName) == 0 {
-    	    fmt.Println("No PI assigned to this ceph group")
-    	} else {
-    	    for _, name := range piName {
-    	        fmt.Println(name)
-    	    }
-    	}
+		if len(ownerName) == 0 {
+	   	    fmt.Println("No PI assigned to this cephfs group")
+	   	} else {
+			fmt.Println(ownerName)
+	   	}
 
-	case "ceph <name> set-pi <username>":
-		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+	// case "cephfs <name> set-pi <username>":
+	// 	found, err := cephfs.cephfsExists(ctx, CLI.cephfs.Name.Name)
+	// 	if err != nil {
+	// 		fmt.Printf("Error checking cephfs group existence: %v\n", err)
+	// 		os.Exit(1)
+	// 	}
+	// 	if found {
+	// 		slog.Debug("cephfs group already exists")
+	// 	}
+	// 	res := cephfs.cephfsSetPI(ctx, CLI.cephfs.Name.Name, CLI.cephfs.Name.SetPI.PI)
+	// 	if res == nil {
+	// 		return 
+	// 	}
+	// 	fmt.Printf("Error setting pi of cephfs group: %s\n", res)
+	// 	return
+
+	case "cephfs <name> create":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
 			os.Exit(1)
 		}
 		if found {
-			slog.Debug("CEPH group already exists")
-		}
-		res := ceph.CephSetPI(ctx, CLI.Ceph.Name.Name, CLI.Ceph.Name.SetPI.PI)
-		if res == nil {
-			return 
-		}
-		fmt.Printf("Error setting pi of ceph group: %s\n", res)
-		return
-
-	case "ceph <name> create":
-		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
-		if err != nil {
-			fmt.Printf("Error checking CEPH group existence: %v\n", err)
-			os.Exit(1)
-		}
-		if found {
-			fmt.Printf("CEPH group %s already exists.\n", CLI.Ceph.Name.Name)
+			fmt.Printf("cephfs group %s already exists.\n", CLI.Cephfs.Name.Name)
 			return
 		}
-		err = ceph.CephCreate(ctx, CLI.Ceph.Name.Name)
+		err = cephfs.CephfsCreate(ctx, CLI.Cephfs.Name.Name, CLI.Cephfs.Name.Create.Owner)
 		if err != nil {
-			fmt.Printf("Error creating Ceph group: %v\n", err)
+			fmt.Printf("Error creating cephfs group: %v\n", err)
 			os.Exit(1)
 		}
-	case "ceph <name> delete":
-		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+	case "cephfs <name> delete":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error checking Ceph existence: %v\n", err)
+			fmt.Printf("Error checking cephfs existence: %v\n", err)
 			os.Exit(1)
 		}
 		if !found {
-			fmt.Printf("CEPH group %s not found.\n", CLI.Ceph.Name.Name)
+			fmt.Printf("cephfs group %s not found.\n", CLI.Cephfs.Name.Name)
 			return
 		}
-		err = ceph.CephDelete(ctx, CLI.Ceph.Name.Name)
+		err = cephfs.CephfsDelete(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error deleting CEPH group: %v\n", err)
+			fmt.Printf("Error deleting cephfs group: %v\n", err)
 			os.Exit(1)
 		}
-	case "ceph <name> add-member <username>":
-		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+	case "cephfs <name> add-member <username>":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
 			fmt.Printf("Error checking PIRG existence: %v\n", err)
 			os.Exit(1)
 		}
 		if !found {
-			fmt.Printf("CEPH group %s not found.\n", CLI.Ceph.Name.Name)
+			fmt.Printf("cephfs group %s not found.\n", CLI.Cephfs.Name.Name)
 			return
 		}
-		for _, username := range CLI.Ceph.Name.AddMember.Usernames {
-			err = ceph.CephAddMember(ctx, CLI.Ceph.Name.Name, username)
+		for _, username := range CLI.Cephfs.Name.AddMember.Usernames {
+			err = cephfs.CephfsAddMember(ctx, CLI.Cephfs.Name.Name, username)
 			if err != nil {
 				fmt.Printf("Error adding member %s: %v\n", username, err)
 				os.Exit(1)
 			}
 		}
-	case "ceph <name> remove-member <username>":
-		found, err := ceph.CephExists(ctx, CLI.Ceph.Name.Name)
+	case "cephfs <name> remove-member <username>":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
-			fmt.Printf("Error checking CEPH group existence: %v\n", err)
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
 			os.Exit(1)
 		}
 		if !found {
-			fmt.Printf("CEPH group %s not found.\n", CLI.Ceph.Name.Name)
+			fmt.Printf("cephfs group %s not found.\n", CLI.Cephfs.Name.Name)
 			return
 		}
-		for _, username := range CLI.Ceph.Name.RemoveMember.Usernames {
-			err = ceph.CephRemoveMember(ctx, CLI.Ceph.Name.Name, username)
+		for _, username := range CLI.Cephfs.Name.RemoveMember.Usernames {
+			err = cephfs.CephfsRemoveMember(ctx, CLI.Cephfs.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "cephs3 list":
+		cephs3_groups, err := cephs3.Cephs3List(ctx)
+		if err != nil {
+			fmt.Printf("Error obtaining list of all cephs3 groups: %v\n", err)
+			os.Exit(1)
+		}
+		if len(cephs3_groups) == 0 {
+			fmt.Println("No cephs3 groups found.")
+			return
+		}
+		for _, groups := range cephs3_groups{
+			fmt.Println(groups)
+		}
+
+	case "cephs3 <name> list-members":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		members, err := cephs3.Cephs3ListMemberUsernames(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing members: %v\n", err)
+			os.Exit(1)
+		}
+		for _, member := range members {
+			fmt.Println(member)
+		}
+	case "cephs3 <name> get-gid":
+		gid, err := cephs3.GetCephs3GroupGID(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(gid)
+
+	case "cephs3 <name> get-owner":
+		ownerName, err := cephs3.Cephs3GetOwnerUsername(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if len(ownerName) == 0 {
+	   	    fmt.Println("No PI assigned to this cephs3 group")
+	   	} else {
+			fmt.Println(ownerName)
+	   	}
+
+	// case "cephs3 <name> set-pi <username>":
+	// 	found, err := cephs3.cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+	// 	if err != nil {
+	// 		fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+	// 		os.Exit(1)
+	// 	}
+	// 	if found {
+	// 		slog.Debug("cephs3 group already exists")
+	// 	}
+	// 	res := cephs3.cephs3SetPI(ctx, CLI.Cephs3.Name.Name, CLI.Cephs3.Name.SetPI.PI)
+	// 	if res == nil {
+	// 		return 
+	// 	}
+	// 	fmt.Printf("Error setting pi of cephs3 group: %s\n", res)
+	// 	return
+
+	case "cephs3 <name> create":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			fmt.Printf("cephs3 group %s already exists.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		err = cephs3.Cephs3Create(ctx, CLI.Cephs3.Name.Name, CLI.Cephs3.Name.Create.Owner)
+		if err != nil {
+			fmt.Printf("Error creating cephs3 group: %v\n", err)
+			os.Exit(1)
+		}
+	case "cephs3 <name> delete":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 group %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		err = cephs3.Cephs3Delete(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error deleting cephs3 group: %v\n", err)
+			os.Exit(1)
+		}
+	case "cephs3 <name> add-member <username>":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 group %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		for _, username := range CLI.Cephs3.Name.AddMember.Usernames {
+			err = cephs3.Cephs3AddMember(ctx, CLI.Cephs3.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding member %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "cephs3 <name> remove-member <username>":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 group %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		for _, username := range CLI.Cephs3.Name.RemoveMember.Usernames {
+			err = cephs3.Cephs3RemoveMember(ctx, CLI.Cephs3.Name.Name, username)
 			if err != nil {
 				fmt.Printf("Error removing member %s: %v\n", username, err)
 				os.Exit(1)

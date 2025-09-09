@@ -29,9 +29,9 @@ func GetGidOfExistingGroup(ctx context.Context, groupName string) (string, error
 		return "", fmt.Errorf("LDAP connection not found in context")
 	}
 
-	fullCN := "is.racs.ceph." + groupName // e.g., "is.racs.ceph.flopezlab"
+	fullCN := "is.racs.cephfs." + groupName // e.g., "is.racs.ceph.flopezlab"
 		searchRequest := ldap.NewSearchRequest(
-		cfg.LDAPCephDN,
+		cfg.LDAPCephfsDN,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
 		0, 0, false,
