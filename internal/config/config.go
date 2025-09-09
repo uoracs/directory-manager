@@ -65,12 +65,12 @@ func loadEnvironment() (*Config, error) {
 	}
 	c.LDAPCephfsDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_CEPHFS_DN")
 	if found {
-		slog.Debug("Found LDAP Ceph DN in environment variables")
+		slog.Debug("Found LDAP Cephfs DN in environment variables")
 		// fmt.Println("LDAPCephDN was found successfully")
 	}
 	c.LDAPCephs3DN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_CEPHS3_DN")
 	if found {
-		slog.Debug("Found LDAP Ceph DN in environment variables")
+		slog.Debug("Found LDAP Cephs3 DN in environment variables")
 		// fmt.Println("LDAPCephDN was found successfully")
 	}
 	c.LDAPSoftwareDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_SOFTWARE_DN")

@@ -576,7 +576,7 @@ func Cephs3Create(ctx context.Context, cephs3Name string, ownerUsername string) 
 	slog.Debug("Created cephs3 OWNER group object", "cephs3OwnerGroupName", cephs3OwnerGroupFullName)
 
 	// Add the Owner to the cephs3 Owner group
-	err = cephs3SetOWNER(ctx, cephs3Name, ownerUsername)
+	err = Cephs3SetOWNER(ctx, cephs3Name, ownerUsername)
 	if err != nil {
 		return fmt.Errorf("failed to add Owner user %s to cephs3 Owner group %s: %w", ownerUsername, cephs3Name, err)
 	}
@@ -657,7 +657,7 @@ func Cephs3GetOwnerUsername(ctx context.Context, cephs3Name string) (string, err
 	return members[0], nil
 }
 
-func cephs3SetOWNER(ctx context.Context, cephs3Name string, ownerUsername string) error {
+func Cephs3SetOWNER(ctx context.Context, cephs3Name string, ownerUsername string) error {
 	slog.Debug("Setting Owner for cephs3", "cephs3Name", cephs3Name, "ownerUsername", ownerUsername)
 	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
 	if cfg == nil {

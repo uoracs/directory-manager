@@ -80,13 +80,13 @@ var CLI struct {
 		Name struct {
 			Name string `arg:""`
 			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
-			GetOwner  struct{} `cmd:"" help:"Get the PI of a PIRG."`
+			GetOwner  struct{} `cmd:"" help:"Get the Owner of a CEPH s3 object."`
+			SetOwner  struct {
+				Owner string `required:"" help:"Name of the Owner." type:"name"`
+			} `cmd:"" help:"Set the Owner of a CEPH s3 object."`
 			Create struct {
-				Owner string `required:"" help:"Name of the PI." type:"name"`
+				Owner string `required:"" help:"Name of the Owner." type:"name"`
 			} `cmd:"" help:"Create a new CEPH group."`
-			SetPI struct {
-				PI string `arg:"" name:"username" help:"Names of the PI." type:"name"`
-			} `cmd:"" help:"Set the PI of a new CEPH group."`
 			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
 			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
 			AddMember   struct {
@@ -94,7 +94,7 @@ var CLI struct {
 			} `cmd:"" help:"Add members to a CEPH group."`
 			RemoveMember struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
-			} `cmd:"" help:"Remove members from a PIRG."`
+			} `cmd:"" help:"Remove members from a Ceph s3 group."`
 		} `arg:""`
 	} `cmd:"" name:"cephs3" help:"Manage Ceph s3 buckets groups."`
 	Cephfs struct {
@@ -104,20 +104,20 @@ var CLI struct {
 			Name string `arg:""`
 			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
 			GetOwner  struct{} `cmd:"" help:"Get the PI of a PIRG."`
+			SetOwner  struct {
+				Owner string `required:"" help:"Name of the Owner." type:"name"`
+			} `cmd:"" help:"Set the Owner of a Cephfs."`
 			Create struct {
-				Owner string `required:"" help:"Name of the PI." type:"name"`
+				Owner string `required:"" help:"Name of the Owner." type:"name"`
 			} `cmd:"" help:"Create a new CEPH group."`
-			SetPI struct {
-				PI string `arg:"" name:"username" help:"Names of the PI." type:"name"`
-			} `cmd:"" help:"Set the PI of a new CEPH group."`
-			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
+			Delete struct{} `cmd:"" help:"Delete a Cephfs group."`
 			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
 			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 			} `cmd:"" help:"Add members to a CEPH group."`
 			RemoveMember struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
-			} `cmd:"" help:"Remove members from a PIRG."`
+			} `cmd:"" help:"Remove members from a Cephfs POSIX fs."`
 		} `arg:""`
 	} `cmd:"" help:"Manage Cephfs POSIX groups."`
 	Software struct {
@@ -598,21 +598,21 @@ func main() {
 			fmt.Println(ownerName)
 	   	}
 
-	// case "cephfs <name> set-pi <username>":
-	// 	found, err := cephfs.cephfsExists(ctx, CLI.cephfs.Name.Name)
-	// 	if err != nil {
-	// 		fmt.Printf("Error checking cephfs group existence: %v\n", err)
-	// 		os.Exit(1)
-	// 	}
-	// 	if found {
-	// 		slog.Debug("cephfs group already exists")
-	// 	}
-	// 	res := cephfs.cephfsSetPI(ctx, CLI.cephfs.Name.Name, CLI.cephfs.Name.SetPI.PI)
-	// 	if res == nil {
-	// 		return 
-	// 	}
-	// 	fmt.Printf("Error setting pi of cephfs group: %s\n", res)
-	// 	return
+	case "cephfs <name> set-owner":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			slog.Debug("cephfs group already exists")
+		}
+		res := cephfs.CEPHFSSetOWNER(ctx, CLI.Cephfs.Name.Name, CLI.Cephfs.Name.SetOwner.Owner)
+		if res == nil {
+			return 
+		}
+		fmt.Printf("Error setting pi of cephs3 group: %s\n", res)
+		return
 
 	case "cephfs <name> create":
 		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
@@ -730,21 +730,21 @@ func main() {
 			fmt.Println(ownerName)
 	   	}
 
-	// case "cephs3 <name> set-pi <username>":
-	// 	found, err := cephs3.cephs3Exists(ctx, CLI.Cephs3.Name.Name)
-	// 	if err != nil {
-	// 		fmt.Printf("Error checking cephs3 group existence: %v\n", err)
-	// 		os.Exit(1)
-	// 	}
-	// 	if found {
-	// 		slog.Debug("cephs3 group already exists")
-	// 	}
-	// 	res := cephs3.cephs3SetPI(ctx, CLI.Cephs3.Name.Name, CLI.Cephs3.Name.SetPI.PI)
-	// 	if res == nil {
-	// 		return 
-	// 	}
-	// 	fmt.Printf("Error setting pi of cephs3 group: %s\n", res)
-	// 	return
+	case "cephs3 <name> set-owner":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if found {
+			slog.Debug("cephs3 group already exists")
+		}
+		res := cephs3.Cephs3SetOWNER(ctx, CLI.Cephs3.Name.Name, CLI.Cephs3.Name.SetOwner.Owner)
+		if res == nil {
+			return 
+		}
+		fmt.Printf("Error setting pi of cephs3 group: %s\n", res)
+		return
 
 	case "cephs3 <name> create":
 		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
