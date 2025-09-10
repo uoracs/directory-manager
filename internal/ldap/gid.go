@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/uoracs/directory-manager/internal/config"
@@ -29,13 +30,25 @@ func GetGidOfExistingGroup(ctx context.Context, groupName string) (string, error
 		return "", fmt.Errorf("LDAP connection not found in context")
 	}
 
-	fullCN := "is.racs.cephfs." + groupName // e.g., "is.racs.ceph.flopezlab"
-		searchRequest := ldap.NewSearchRequest(
-		cfg.LDAPCephfsDN,
+	// fullCN := "is.racs.cephfs." + groupName // e.g., "is.racs.ceph.flopezlab"
+	var baseDN string
+	if strings.HasPrefix(groupName, "is.racs.cephfs.") {
+	    baseDN = cfg.LDAPCephfsDN
+	} else if strings.HasPrefix(groupName, "is.racs.cephs3.") {
+	    baseDN = cfg.LDAPCephs3DN
+	} else if strings.HasPrefix(groupName, "is.racs.pirg.") {
+	    baseDN = cfg.LDAPPirgDN
+	} else if strings.HasPrefix(groupName, "is.racs.software.") {
+	    baseDN = cfg.LDAPSoftwareDN
+	} else {
+	    return "", fmt.Errorf("unknown group type for %s", groupName)
+	}
+	searchRequest := ldap.NewSearchRequest(
+		baseDN,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
 		0, 0, false,
-		fmt.Sprintf("(&(objectClass=group)(cn=%s))", ldap.EscapeFilter(fullCN)),
+		fmt.Sprintf("(&(objectClass=group)(cn=%s))", ldap.EscapeFilter(groupName)),
 		[]string{"cn", "gidNumber"},
 		nil,
 	)

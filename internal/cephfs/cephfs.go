@@ -200,9 +200,10 @@ func GetCephfsGroupGID(ctx context.Context, groupName string) (string, error) {
 		return "", fmt.Errorf("config not found in context")
 	}
 
-	gid, err := ld.GetGidOfExistingGroup(ctx, groupName)
+	fullCN := groupPrefix + groupName // e.g., "is.racs.cephfs.flopezlab"
+	gid, err := ld.GetGidOfExistingGroup(ctx, fullCN)
 	if err != nil {
-		return "", fmt.Errorf("failed to get GID for group %s: %w", groupName, err)
+		return "", fmt.Errorf("failed to get GID for group %s: %w", fullCN, err)
 	}
 
 	return gid, nil
