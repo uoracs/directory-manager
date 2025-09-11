@@ -82,48 +82,48 @@ var CLI struct {
 
 	Cephs3 struct {
 		List struct {
-		} `cmd:"" help:"Get list of all ceph groups."`
+		} `cmd:"" help:"Get list of all cephs3 groups."`
 		Name struct {
 			Name string `arg:""`
-			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
-			GetOwner  struct{} `cmd:"" help:"Get the Owner of a CEPH s3 object."`
+			GetGID struct {} `cmd:"" help:"Create a new cephs3 object."`
+			GetOwner  struct{} `cmd:"" help:"Get the Owner of a cephs3 object."`
 			SetOwner  struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
-			} `cmd:"" help:"Set the Owner of a CEPH s3 object."`
+			} `cmd:"" help:"Set the Owner of a cephs3 group."`
 			Create struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
-			} `cmd:"" help:"Create a new CEPH group."`
-			Delete struct{} `cmd:"" help:"Delete a CEPH group."`
-			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
+			} `cmd:"" help:"Create a new cephs3 group."`
+			Delete struct{} `cmd:"" help:"Delete a cephs3 group."`
+			ListMembers struct{} `cmd:"" help:"List all members of a cephs3 group."`
 			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
-			} `cmd:"" help:"Add members to a CEPH group."`
+			} `cmd:"" help:"Add members to a cephs3 group."`
 			RemoveMember struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
-			} `cmd:"" help:"Remove members from a Ceph s3 group."`
+			} `cmd:"" help:"Remove members from a cephs3 group."`
 		} `arg:""`
 	} `cmd:"" name:"cephs3" help:"Manage Ceph s3 buckets groups."`
 	Cephfs struct {
 		List struct {
-		} `cmd:"" help:"Get list of all ceph groups."`
+		} `cmd:"" help:"Get list of all cephfs groups."`
 		Name struct {
 			Name string `arg:""`
-			GetGID struct {} `cmd:"" help:"Create a new CEPH group."`
-			GetOwner  struct{} `cmd:"" help:"Get the PI of a PIRG."`
+			GetGID struct {} `cmd:"" help:"Create a new cephfs group."`
+			GetOwner  struct{} `cmd:"" help:"Get the Owner of a cephfs group."`
 			SetOwner  struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
-			} `cmd:"" help:"Set the Owner of a Cephfs."`
+			} `cmd:"" help:"Set the Owner of a cephfs group."`
 			Create struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
-			} `cmd:"" help:"Create a new CEPH group."`
-			Delete struct{} `cmd:"" help:"Delete a Cephfs group."`
-			ListMembers struct{} `cmd:"" help:"List all members of a ceph group."`
+			} `cmd:"" help:"Create a new cephfs group."`
+			Delete struct{} `cmd:"" help:"Delete a cephfs group."`
+			ListMembers struct{} `cmd:"" help:"List all members of a cephfs group."`
 			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
-			} `cmd:"" help:"Add members to a CEPH group."`
+			} `cmd:"" help:"Add members to a cephfs group."`
 			RemoveMember struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
-			} `cmd:"" help:"Remove members from a Cephfs POSIX fs."`
+			} `cmd:"" help:"Remove members from a cephfs group."`
 		} `arg:""`
 	} `cmd:"" help:"Manage Cephfs POSIX groups."`
 	Software struct {
