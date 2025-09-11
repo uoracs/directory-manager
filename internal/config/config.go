@@ -17,7 +17,8 @@ type Config struct {
 	LDAPUsersBaseDN  string `yaml:"ldap_users_base_dn"`
 	LDAPGroupsBaseDN string `yaml:"ldap_groups_base_dn"`
 	LDAPPirgDN       string `yaml:"ldap_pirg_dn"`
-	LDAPCephDN       string `yaml:"ldap_ceph_dn"`
+	LDAPCephfsDN       string `yaml:"ldap_cephfs_dn"`
+	LDAPCephs3DN       string `yaml:"ldap_cephs3_dn"`
 	LDAPSoftwareDN   string `yaml:"ldap_software_dn"`
 	LDAPMinGid       int    `yaml:"ldap_min_gid"`
 	LDAPMaxGid       int    `yaml:"ldap_max_gid"`
@@ -62,9 +63,14 @@ func loadEnvironment() (*Config, error) {
 	if found {
 		slog.Debug("Found LDAP PIRG DN in environment variables")
 	}
-	c.LDAPCephDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_CEPH_DN")
+	c.LDAPCephfsDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_CEPHFS_DN")
 	if found {
-		slog.Debug("Found LDAP Ceph DN in environment variables")
+		slog.Debug("Found LDAP Cephfs DN in environment variables")
+		// fmt.Println("LDAPCephDN was found successfully")
+	}
+	c.LDAPCephs3DN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_CEPHS3_DN")
+	if found {
+		slog.Debug("Found LDAP Cephs3 DN in environment variables")
 		// fmt.Println("LDAPCephDN was found successfully")
 	}
 	c.LDAPSoftwareDN, found = os.LookupEnv("DIRECTORY_MANAGER_LDAP_SOFTWARE_DN")
@@ -141,8 +147,11 @@ func mergeConfigsLeft(cfg1, cfg2 *Config) *Config {
 	if cfg2.LDAPPirgDN != "" {
 		cfg1.LDAPPirgDN = cfg2.LDAPPirgDN
 	}
-	if cfg2.LDAPCephDN != "" {
-		cfg1.LDAPCephDN = cfg2.LDAPCephDN
+	if cfg2.LDAPCephfsDN != "" {
+		cfg1.LDAPCephfsDN = cfg2.LDAPCephfsDN
+	}
+	if cfg2.LDAPCephs3DN != "" {
+		cfg1.LDAPCephs3DN = cfg2.LDAPCephs3DN
 	}
 	if cfg2.LDAPSoftwareDN != "" {
 		cfg1.LDAPSoftwareDN = cfg2.LDAPSoftwareDN
@@ -206,8 +215,11 @@ func GetConfig(path string) (*Config, error) {
 	if cfg.LDAPPirgDN == "" {
 		cfg.LDAPPirgDN = "ou=PIRGS,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
 	}
-	if cfg.LDAPCephDN == "" {
-		cfg.LDAPCephDN = "ou=Ceph,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
+	if cfg.LDAPCephfsDN == "" {
+		cfg.LDAPCephfsDN = "ou=CEPHFS,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
+	}
+	if cfg.LDAPCephs3DN == "" {
+		cfg.LDAPCephs3DN = "ou=CEPHS3,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"
 	}
 	if cfg.LDAPSoftwareDN == "" {
 		cfg.LDAPSoftwareDN = "ou=Software,ou=RACS,ou=Groups,ou=IS,ou=units,dc=ad,dc=uoregon,dc=edu"

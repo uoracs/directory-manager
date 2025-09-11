@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/uoracs/directory-manager/internal/config"
@@ -17,6 +18,53 @@ func GetDummyGidNumber(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to get next GID number: %w", err)
 	}
 	return n + 1000, nil
+}
+func GetGidOfExistingGroup(ctx context.Context, groupName string) (string, error) {
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return "", fmt.Errorf("config not found in context")
+	}
+
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return "", fmt.Errorf("LDAP connection not found in context")
+	}
+
+	// fullCN := "is.racs.cephfs." + groupName // e.g., "is.racs.ceph.flopezlab"
+	var baseDN string
+	if strings.HasPrefix(groupName, "is.racs.cephfs.") {
+	    baseDN = cfg.LDAPCephfsDN
+	} else if strings.HasPrefix(groupName, "is.racs.cephs3.") {
+	    baseDN = cfg.LDAPCephs3DN
+	} else if strings.HasPrefix(groupName, "is.racs.pirg.") {
+	    baseDN = cfg.LDAPPirgDN
+	} else if strings.HasPrefix(groupName, "is.racs.software.") {
+	    baseDN = cfg.LDAPSoftwareDN
+	} else {
+	    return "", fmt.Errorf("unknown group type for %s", groupName)
+	}
+	searchRequest := ldap.NewSearchRequest(
+		baseDN,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		fmt.Sprintf("(&(objectClass=group)(cn=%s))", ldap.EscapeFilter(groupName)),
+		[]string{"cn", "gidNumber"},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to search LDAP: %w", err)
+	}
+
+	if len(sr.Entries) == 0 {
+		return "", fmt.Errorf("group %s not found", groupName)
+	}
+
+	gidStr := sr.Entries[0].GetAttributeValue("gidNumber")
+
+	return gidStr, nil
 }
 
 func GetNextGidNumber(ctx context.Context) (int, error) {
