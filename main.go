@@ -85,8 +85,8 @@ var CLI struct {
 		} `cmd:"" help:"Get list of all cephs3 groups."`
 		Name struct {
 			Name string `arg:""`
-			GetGID struct {} `cmd:"" help:"Create a new cephs3 object."`
-			GetOwner  struct{} `cmd:"" help:"Get the Owner of a cephs3 object."`
+			GetGID struct {} `cmd:"" help:"Get the GID of a cephs3 group."`
+			GetOwner  struct{} `cmd:"" help:"Get the Owner of a cephs3 group."`
 			SetOwner  struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
 			} `cmd:"" help:"Set the Owner of a cephs3 group."`
@@ -108,7 +108,7 @@ var CLI struct {
 		} `cmd:"" help:"Get list of all cephfs groups."`
 		Name struct {
 			Name string `arg:""`
-			GetGID struct {} `cmd:"" help:"Create a new cephfs group."`
+			GetGID struct {} `cmd:"" help:"Get the GID of a cephfs group."`
 			GetOwner  struct{} `cmd:"" help:"Get the Owner of a cephfs group."`
 			SetOwner  struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
