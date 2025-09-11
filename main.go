@@ -25,6 +25,12 @@ var CLI struct {
 	Debug   bool        `help:"Enable debug mode." short:"d" type:"bool"`
 	Version VersionFlag `help:"Show version." short:"v" type:"bool"`
 
+	Aduser struct {
+		Name struct {
+			Name string `arg:""`
+				GetUid  struct{} `cmd:"" help:"Get the UID of a User in AD."`
+		} `arg:""`
+	} `cmd:"" help:"Manage PIRGs."`
 	Pirg struct {
 		List struct {
 		} `cmd:"" help:"List all PIRGs."`
@@ -545,6 +551,14 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(gid)
+
+	case "aduser <name> get-uid":
+		uid, err := ld.GetUidOfExistingUser(ctx, CLI.Aduser.Name.Name)
+		if err != nil {
+			fmt.Printf("Error obtaining next gid number: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(uid)
 
 	case "cephfs list":
 		cephfs_groups, err := cephfs.CephfsList(ctx)
