@@ -18,7 +18,7 @@ import (
 	"github.com/uoracs/directory-manager/internal/software"
 )
 
-var version = "v1.1.1"
+var version = "v1.1.3"
 
 var CLI struct {
 	Config  string      `help:"Path to the configuration file." short:"c" type:"path"`
