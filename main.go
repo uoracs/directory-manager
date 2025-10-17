@@ -18,7 +18,7 @@ import (
 	"github.com/uoracs/directory-manager/internal/software"
 )
 
-var version = "v1.1.3"
+var version = "v1.1.4"
 
 var CLI struct {
 	Config  string      `help:"Path to the configuration file." short:"c" type:"path"`
@@ -29,6 +29,7 @@ var CLI struct {
 		Name struct {
 			Name string `arg:""`
 				GetUid  struct{} `cmd:"" help:"Get the UID of a User in AD."`
+				RemoveTalapasUser  struct{} `cmd:"" help:"Remove the user from the main Talapas group"`
 		} `arg:""`
 	} `cmd:"" help:"Manage PIRGs."`
 	Pirg struct {
@@ -555,10 +556,17 @@ func main() {
 	case "aduser <name> get-uid":
 		uid, err := ld.GetUidOfExistingUser(ctx, CLI.Aduser.Name.Name)
 		if err != nil {
-			fmt.Printf("Error obtaining next gid number: %v\n", err)
+			fmt.Printf("Error obtaining uid for user: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println(uid)
+	case "aduser <name> remove-talapas-user":
+		removed_user, err := ld.RemoveUserFromTalapasMaster(ctx, CLI.Aduser.Name.Name)
+		if err != nil {
+			fmt.Printf("Error removing user from Talapas list (is.racs.talapas.users): %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s", removed_user)
 
 	case "cephfs list":
 		cephfs_groups, err := cephfs.CephfsList(ctx)
