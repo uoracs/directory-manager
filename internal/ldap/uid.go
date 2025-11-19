@@ -68,10 +68,8 @@ func RemoveUserFromTalapasMaster(ctx context.Context, username string) (string, 
 	if l == nil {
 		return "", fmt.Errorf("LDAP connection not found in context")
 	}
-
 	// Define the DN for the is.racs.talapas.users group
 	groupDN := topLevelUsersGroupDN
-
 	// Search for the user DN
 	searchRequest := ldap.NewSearchRequest(
 		cfg.LDAPUsersBaseDN,
@@ -82,7 +80,6 @@ func RemoveUserFromTalapasMaster(ctx context.Context, username string) (string, 
 		[]string{"distinguishedName"},
 		nil,
 	)
-
 	sr, err := l.Search(searchRequest)
 	if err != nil {
 		return "", fmt.Errorf("failed to search LDAP for user %s: %w", username, err)

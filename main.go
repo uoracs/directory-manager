@@ -14,7 +14,6 @@ import (
 	"github.com/uoracs/directory-manager/internal/pirg"
 	"github.com/uoracs/directory-manager/internal/cephfs"
 	"github.com/uoracs/directory-manager/internal/cephs3"
-	// "github.com/uoracs/directory-manager/internal/ceph"
 	"github.com/uoracs/directory-manager/internal/software"
 )
 
