@@ -572,6 +572,13 @@ func PirgCreate(ctx context.Context, pirgName string, piUsername string) error {
 	}
 	slog.Debug("Created PIRG PI group object", "pirgPIGroupName", pirgPIGroupFullName)
 
+	// Add the PI to the PIRG group
+	err = PirgAddMember(ctx, pirgName, piUsername)
+	if err != nil {
+		return fmt.Errorf("failed to add PI user %s to PIRG %s: %w", piUsername, pirgName, err)
+	}
+	slog.Debug("Added PI to PIRG group", "piUsername", piUsername, "pirgName", pirgName)
+
 	// Add the PI to the PIRG PI group
 	err = PirgSetPI(ctx, pirgName, piUsername)
 	if err != nil {
@@ -586,12 +593,6 @@ func PirgCreate(ctx context.Context, pirgName string, piUsername string) error {
 	}
 	slog.Debug("Added PI to PIRG admins group", "piUsername", piUsername, "pirgName", pirgName)
 
-	// Add the PI to the PIRG group
-	err = PirgAddMember(ctx, pirgName, piUsername)
-	if err != nil {
-		return fmt.Errorf("failed to add PI user %s to PIRG %s: %w", piUsername, pirgName, err)
-	}
-	slog.Debug("Added PI to PIRG group", "piUsername", piUsername, "pirgName", pirgName)
 
 	return nil
 }
@@ -660,7 +661,7 @@ func PirgSetPI(ctx context.Context, pirgName string, piUsername string) error {
 	if cfg == nil {
 		return fmt.Errorf("config not found in context")
 	}
-	pirgDN, err := getPIRGDN(ctx, pirgName)
+	//pirgDN, err := getPIRGDN(ctx, pirgName)
 	if err != nil {
 		return fmt.Errorf("failed to get PIRG DN: %w", err)
 	}
@@ -691,10 +692,13 @@ func PirgSetPI(ctx context.Context, pirgName string, piUsername string) error {
 		}
 	}
 	// Add the user to the PIRG
-	err = ld.AddUserToGroup(ctx, pirgDN, piDN)
+	// This is the correct function to add user to group as the previous did not account for adding new PI to is.racs.talapas.users
+
+	err = PirgAddMember(ctx, pirgName, piUsername)
 	if err != nil {
-		return fmt.Errorf("failed to add pi user %s to PIRG %s: %w", piUsername, pirgName, err)
+		return fmt.Errorf("failed to add PI user %s to PIRG %s: %w", piUsername, pirgName, err)
 	}
+	slog.Debug("Added PI to PIRG group", "piUsername", piUsername, "pirgName", pirgName)
 	// Add the user to the PIRG PI group
 	err = ld.AddUserToGroup(ctx, pirgPIGroupDN, piDN)
 	if err != nil {
