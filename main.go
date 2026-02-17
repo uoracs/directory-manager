@@ -28,8 +28,8 @@ var CLI struct {
 		Name struct {
 			Name string `arg:""`
 				GetUid  struct{} `cmd:"" help:"Get the UID of a User in AD."`
-				RemoveTalapasGroupUser  struct{} `cmd:"" help:"Remove the user from the main Talapas group"`
-				AddTalapasGroupUser  struct{} `cmd:"" help:"Remove the user from the main Talapas group"`
+				RemoveTalapasGroupUser  struct{} `cmd:"" help:"Remove a user from the main Talapas group"`
+				AddTalapasGroupUser  struct{} `cmd:"" help:"Add a user to the main Talapas group"`
 		} `arg:""`
 	} `cmd:"" help:"Manage PIRGs."`
 	Pirg struct {
