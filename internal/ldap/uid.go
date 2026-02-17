@@ -3,6 +3,7 @@ package ldap
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/uoracs/directory-manager/internal/config"
@@ -70,6 +71,8 @@ func RemoveUserFromTalapasMaster(ctx context.Context, username string) (string, 
 	}
 	// Define the DN for the is.racs.talapas.users group
 	groupDN := topLevelUsersGroupDN
+	// grabing the talapasCN for stdout so I can confirm the group that the user was removed from
+	talapasCN := strings.TrimPrefix(strings.SplitN(groupDN, ",", 2)[0], "CN=")
 	// Search for the user DN
 	searchRequest := ldap.NewSearchRequest(
 		cfg.LDAPUsersBaseDN,
@@ -114,5 +117,46 @@ func RemoveUserFromTalapasMaster(ctx context.Context, username string) (string, 
 		return "", fmt.Errorf("failed to remove user %s from group %s: %w", username, groupDN, err)
 	}
 
-	return fmt.Sprintf("Successfully removed %s from %s", username, groupDN), nil
+	return fmt.Sprintf("Successfully removed %s from %s", username, talapasCN), nil
+}
+func AddUserToTalapasMaster(ctx context.Context, username string) (string, error) {
+	cfg := ctx.Value(keys.ConfigKey).(*config.Config)
+	if cfg == nil {
+		return "", fmt.Errorf("config not found in context")
+	}
+
+	l := ctx.Value(keys.LDAPConnKey).(*ldap.Conn)
+	if l == nil {
+		return "", fmt.Errorf("LDAP connection not found in context")
+	}
+	// Define the DN for the is.racs.talapas.users group
+	groupDN := topLevelUsersGroupDN
+
+	// grabing the talapasCN for stdout so I can confirm the group that the user was added to 
+	talapasCN := strings.TrimPrefix(strings.SplitN(groupDN, ",", 2)[0], "CN=")
+	// Search for the user DN
+	searchRequest := ldap.NewSearchRequest(
+		cfg.LDAPUsersBaseDN,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		fmt.Sprintf("(&(objectClass=user)(sAMAccountName=%s))", ldap.EscapeFilter(username)),
+		[]string{"distinguishedName"},
+		nil,
+	)
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to search LDAP for user %s: %w", username, err)
+	}
+	if len(sr.Entries) == 0 {
+		return "", fmt.Errorf("user %s not found in LDAP", username)
+	}
+
+	userDN := sr.Entries[0].GetAttributeValue("distinguishedName")
+
+	if err := AddUserToGroup(ctx, groupDN, userDN); err != nil {
+		return "", fmt.Errorf("failed to add user %s to group %s: %w", username, groupDN, err)
+	}
+
+	return fmt.Sprintf("Successfully added %s to %s", username, talapasCN), nil
 }
