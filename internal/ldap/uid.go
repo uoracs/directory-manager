@@ -110,7 +110,7 @@ func RemoveUserFromTalapasMaster(ctx context.Context, username string) (string, 
 	}
 
 	if len(groupResult.Entries) == 0 {
-		return "", fmt.Errorf("user %s is not a member of %s", username, groupDN)
+		return fmt.Sprintf("user %s is not a member of %s", username, groupDN), nil
 	}
 
 	if err := RemoveUserFromGroup(ctx, groupDN, userDN); err != nil {
