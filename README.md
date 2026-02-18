@@ -28,3 +28,13 @@ export DIRECTORY_MANAGER_LDAP_MAX_GID=60000
 export DIRECTORY_MANAGER_LDAP_GROUP_PREFIX="myorg.research.pirg."
 export DIRECTORY_MANAGER_LDAP_GROUP_SUFFIX=""
 ```
+
+## Pushing new releases: 
+
+If you partake in any new development with this tool, utilize goreleaser to push new releases to github
+
+### Steps: 
+
+- rm -rf dist/
+- git tag vX.Y.Z
+- goreleaser
