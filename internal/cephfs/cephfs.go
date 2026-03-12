@@ -18,7 +18,7 @@ var (
 	found                 bool
 	groupPrefix           = "is.racs.cephfs."
 	topLevelUsersGroupDN  = "CN=IS.RACS.Talapas.Users,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
-	topLevelAdminsGroupDN = "CN=IS.RACS.Talapas.CephAdmins,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
+	topLevelAdminsGroupDN = "CN=IS.RACS.Talapas.CephfsAdmins,OU=RACS,OU=Groups,OU=IS,OU=Units,DC=ad,DC=uoregon,DC=edu"
 )
 
 func ConvertCEPHGroupNametoShortName(cephfsName string) (string, error) {

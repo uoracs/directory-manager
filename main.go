@@ -95,6 +95,13 @@ var CLI struct {
 				Owner string `required:"" help:"Name of the Owner." type:"name"`
 			} `cmd:"" help:"Create a new cephs3 group."`
 			Delete struct{} `cmd:"" help:"Delete a cephs3 group."`
+			ListAdmins struct{} `cmd:"" help:"List all admins of a Cephs3 group."`
+			AddAdmin   struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the admins." type:"name"`
+			} `cmd:"" help:"Add admins to a Cephs3 group."`
+			RemoveAdmin struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the admins." type:"name"`
+			} `cmd:"" help:"Remove admins from a Cephs3 group."`
 			ListMembers struct{} `cmd:"" help:"List all members of a cephs3 group."`
 			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
@@ -119,6 +126,13 @@ var CLI struct {
 			} `cmd:"" help:"Create a new cephfs group."`
 			Delete struct{} `cmd:"" help:"Delete a cephfs group."`
 			ListMembers struct{} `cmd:"" help:"List all members of a cephfs group."`
+			ListAdmins struct{} `cmd:"" help:"List all admins of a Cephfs group."`
+			AddAdmin   struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the admins." type:"name"`
+			} `cmd:"" help:"Add admins to a Cephfs group."`
+			RemoveAdmin struct {
+				Usernames []string `arg:"" name:"username" help:"Names of the admins." type:"name"`
+			} `cmd:"" help:"Remove admins from a Cephfs group."`
 			AddMember   struct {
 				Usernames []string `arg:"" name:"username" help:"Names of the members." type:"name"`
 			} `cmd:"" help:"Add members to a cephfs group."`
@@ -609,6 +623,59 @@ func main() {
 		for _, member := range members {
 			fmt.Println(member)
 		}
+
+    case "cephfs <name> list-admins":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephfs group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephfs group %s not found.\n", CLI.Cephfs.Name.Name)
+			return
+		}
+		admins, err := cephfs.CephfsListAdminUsernames(ctx, CLI.Cephfs.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing admins: %v\n", err)
+			os.Exit(1)
+		}
+		for _, admin := range admins {
+			fmt.Println(admin)
+		}
+	case "cephfs <name> add-admin <username>":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking Cephfs existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Cephfs %s not found.\n", CLI.Cephfs.Name.Name)
+			return
+		}
+		for _, username := range CLI.Cephfs.Name.AddAdmin.Usernames {
+			err = cephfs.CephfsAddAdmin(ctx, CLI.Cephfs.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding admin %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "cephfs <name> remove-admin <username>":
+		found, err := cephfs.CephfsExists(ctx, CLI.Cephfs.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("Cephfs %s not found.\n", CLI.Cephfs.Name.Name)
+			return
+		}
+		for _, username := range CLI.Cephfs.Name.RemoveAdmin.Usernames {
+			err = cephfs.CephfsRemoveAdmin(ctx, CLI.Cephfs.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing admin %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
 	case "cephfs <name> get-gid":
 		gid, err := cephfs.GetCephfsGroupGID(ctx, CLI.Cephfs.Name.Name)
 		if err != nil {
@@ -776,6 +843,58 @@ func main() {
 		}
 		fmt.Printf("Error setting pi of cephs3 group: %s\n", res)
 		return
+    case "cephs3 <name> list-admins":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 group existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 group %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		admins, err := cephs3.Cephs3ListAdminUsernames(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error listing admins: %v\n", err)
+			os.Exit(1)
+		}
+		for _, admin := range admins {
+			fmt.Println(admin)
+		}
+	case "cephs3 <name> add-admin <username>":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking cephs3 existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		for _, username := range CLI.Cephs3.Name.AddAdmin.Usernames {
+			err = cephs3.Cephs3AddAdmin(ctx, CLI.Cephs3.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error adding admin %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
+	case "cephs3 <name> remove-admin <username>":
+		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
+		if err != nil {
+			fmt.Printf("Error checking PIRG existence: %v\n", err)
+			os.Exit(1)
+		}
+		if !found {
+			fmt.Printf("cephs3 %s not found.\n", CLI.Cephs3.Name.Name)
+			return
+		}
+		for _, username := range CLI.Cephs3.Name.RemoveAdmin.Usernames {
+			err = cephs3.Cephs3RemoveAdmin(ctx, CLI.Cephs3.Name.Name, username)
+			if err != nil {
+				fmt.Printf("Error removing admin %s: %v\n", username, err)
+				os.Exit(1)
+			}
+		}
 
 	case "cephs3 <name> create":
 		found, err := cephs3.Cephs3Exists(ctx, CLI.Cephs3.Name.Name)
