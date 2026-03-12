@@ -33,6 +33,18 @@ export DIRECTORY_MANAGER_LDAP_GROUP_SUFFIX=""
 
 If you partake in any new development with this tool, utilize goreleaser to push new releases to github
 
+## IMPORTANT: Setting up a Github TOKEN
+
+We need to give goreleaser a GitHub token to use to access our release uploads. 
+You can create a new token here: *https://github.com/settings/tokens/new* if you're signed in. 
+You'll need to give it the "repo" permissions (just check the box of the whole section) . Name the token something useful 
+(like goreleaser, etc), and copy the value you're given and in your terminal, add this token value to your environment
+variables with the name GITHUB_TOKEN. See below:
+```bash
+$ export GITHUB_TOKEN=token_string
+``` 
+I also recommend adding it into you ~/.zshrc or similar stucture file for pernament and consistent loading of any custom env variables. 
+
 ### Steps: 
 
 - rm -rf dist/
