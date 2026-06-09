@@ -77,28 +77,44 @@ func GetNextGidNumber(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("LDAP connection not found in context")
 	}
 	highestGid := 0
-	searchRequest := ldap.NewSearchRequest(
-		cfg.LDAPGroupsBaseDN,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		"(&(objectClass=group)(gidNumber=*))",
-		[]string{"gidNumber"},
-		nil,
-	)
-	sr, err := l.Search(searchRequest)
-	if err != nil {
-		return 0, fmt.Errorf("failed to search LDAP: %w", err)
+    pagingControl := ldap.NewControlPaging(500) // fetch 500 entries per page. Can be adjusted as needed
 
+	// loop for the paging feature
+	for {
+	    searchRequest := ldap.NewSearchRequest(
+	    	cfg.LDAPGroupsBaseDN,
+	    	ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+	    	"(&(objectClass=group)(gidNumber=*))",
+	    	[]string{"gidNumber"},
+	    	[]ldap.Control{pagingControl},
+		)
 
-	}
-	for _, entry := range sr.Entries {
-		gid, err := strconv.Atoi(entry.GetAttributeValue("gidNumber"))
-		if err != nil {
-			continue
-		}
-		if gid > highestGid {
-			highestGid = gid
-		}
-	}
+        sr, err := l.Search(searchRequest)
+        if err != nil {
+            return 0, fmt.Errorf("failed to search LDAP: %w", err)
+        }
+
+        for _, entry := range sr.Entries {
+            gid, err := strconv.Atoi(entry.GetAttributeValue("gidNumber"))
+            if err != nil {
+                    continue
+            }
+            if gid > highestGid {
+                    highestGid = gid
+            }
+        }
+
+        updatedControl := ldap.FindControl(sr.Controls, ldap.ControlTypePaging)
+        if updatedControl == nil {
+            break
+        }
+        cookie := updatedControl.(*ldap.ControlPaging).Cookie
+        if len(cookie) == 0 {
+            break
+        }
+        pagingControl.SetCookie(cookie)
+    }
+
 	if highestGid >= cfg.LDAPMaxGid {
 		return 0, fmt.Errorf("no available GID numbers")
 	}

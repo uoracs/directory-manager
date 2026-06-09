@@ -50,3 +50,8 @@ I also recommend adding it into you ~/.zshrc or similar stucture file for pernam
 - rm -rf dist/
 - git tag vX.Y.Z
 - goreleaser
+
+
+## Helpful links
+
+https://dev.to/sydneybrokeit/getting-started-with-goreleaser-5672
